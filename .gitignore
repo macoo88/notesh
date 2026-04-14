@@ -1,0 +1,11 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/notes.db
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# System
+.DS_Store

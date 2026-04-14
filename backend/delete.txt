@@ -1,0 +1,8 @@
+sudo pacman -S sqlitebrowser  ->
+Package (5)           New Version  Net Change  Download Size
+
+extra/qcustomplot     2.1.1-1        1,64 MiB       0,46 MiB
+extra/qhexedit2       0.8.9-2        0,14 MiB       0,05 MiB
+extra/qscintilla-qt5  2.14.1-6       6,65 MiB       1,19 MiB
+extra/sqlcipher       4.13.0-1       5,61 MiB       1,48 MiB
+extra/sqlitebrowser   3.13.1-3       5,09 MiB       2,19 MiB
