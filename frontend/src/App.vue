@@ -12,7 +12,7 @@
         </div>
         
         <div class="nav-buttons">
-          <button class="btn btn-login" >Lagin</button>
+          <button class="btn btn-login" >Login</button>
           <button class="btn btn-register">Register</button>
         </div>
       </div>
