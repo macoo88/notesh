@@ -1,22 +1,10 @@
 <script setup>
 //toogle register
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
+import axios from 'axios'
 
 const showRegister = ref(false)
-
-const toggleRegister = () => {
-  showRegister.value = !showRegister.value
-}
-//
-
-//toogle login
 const showLogin = ref(false)
-
-const toggleLogin = () => {
-  showLogin.value = !showLogin.value
-}
-
-//
 
 const switchToRegister = () => {
   showLogin.value = false;    
@@ -25,6 +13,43 @@ const switchToRegister = () => {
 const switchToLogin = () => {
   showRegister.value = false;    
   showLogin.value = true;  
+}
+const toggleRegister = () => {
+  showRegister.value = !showRegister.value
+}
+const toggleLogin = () => {
+  showLogin.value = !showLogin.value
+}
+
+const registerData = reactive({
+  username: '',
+  email: '',
+  password: '',
+  again_password: ''
+})
+
+const handleRegister = async () => {
+  try {
+    const response = await axios.post('http://127.0.0.1:8000/register', {
+      username: registerData.username,
+      email: registerData.email,
+      password: registerData.password,
+      again_password: registerData.again_password
+    })
+    
+    alert(response.data.message) 
+    toggleRegister() 
+    
+    
+    registerData.username = ''
+    registerData.email = ''
+    registerData.password = ''
+    registerData.again_password = ''
+    
+  } catch (error) {
+    
+    alert(error.response?.data?.detail || "Niečo sa pokazilo")
+  }
 }
 </script>
 
@@ -81,12 +106,12 @@ const switchToLogin = () => {
             </div>
           </div>
       
-          <input type="text" placeholder="Username" class="Username">
-          <input type="email" placeholder="E-mail" class="E-mail">
-          <input type="password" placeholder="Password" class="Password">
-          <input type="password" placeholder="Confirm password" class="ConfirmPassword">
+          <input v-model="registerData.username" type="text" placeholder="Username" class="Username">
+          <input v-model="registerData.email" type="email" placeholder="E-mail" class="E-mail">
+          <input v-model="registerData.password" type="password" placeholder="Password" class="Password">
+          <input v-model="registerData.again_password" type="password" placeholder="Confirm password" class="ConfirmPassword">
 
-          <button class="btn btn-register" @click="toggleRegister" >Register</button>
+          <button class="btn btn-register" @click="handleRegister" >Register</button>
 
           <button class="close-btn" @click="toggleRegister">✕</button>
         </div>
