@@ -1,15 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
-from pydantic import BaseModel
-
-
-from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
-
-import random
-import string
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,40 +8,11 @@ from models import UserModel, NoteModel
 from schemas import UserCreate, UserLogin, UserVerify, NoteCreate, NoteView
 
 from database import SessionLocal, engine, Base, get_db
-
-########## ----------------------
-## H A S H E R
-import bcrypt
-
-def hash_password(password: str):
-    pwd_bytes = password.encode('utf-8')
-    salt = bcrypt.gensalt()
-    hashed = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed.decode('utf-8')
-
-def verify_password(plain_password, hashed_password):
-    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-
-
-
-def generate_code():
-    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-#############-------------
-######H A S H E R   __ END
+import auth
 
 Base.metadata.create_all(bind=engine)
 
-
-
-# 3. Pydantic Schema (How it looks in JSON)
-class NoteSchema(BaseModel):
-    title: str
-    content: str
-
-    class Config:
-        from_attributes = True
-
-# 4. FastAPI App
+# FastAPI App
 app = FastAPI()
 
 
@@ -79,12 +41,12 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="The passwords do not match") # 401 ?
 
 
-    code = generate_code()
+    code = auth.generate_code()
     
     new_user = UserModel(
         username=user.username,
         email=user.email,
-        hashed_password=hash_password(user.password),
+        hashed_password=auth.hash_password(user.password),
         verification_code=code,
         is_verified=False
     )
@@ -129,10 +91,19 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid Username")
 
     # 2. Check the password
-    if not verify_password(user.password, db_user.hashed_password):
+    if not auth.verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Wrong Password, mate.")
+    
+    access_token = auth.create_access_token(data={"sub": db_user.username, "id": db_user.id})
+    
+    return {
+        "access_token": access_token, 
+        "token_type": "bearer",
+        "user_id": db_user.id
+    }
 
-    return {"message": "Login successful", "user_id": db_user.id}
+
+    #return {"message": "Login successful", "user_id": db_user.id}
 
 @app.get("/users")
 def read_users(db: Session = Depends(get_db)):

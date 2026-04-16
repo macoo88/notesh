@@ -27,3 +27,9 @@ class NoteView(NoteCreate):
     class Config:
         from_attributes = True
 
+class NoteSchema(BaseModel):
+    title: str
+    content: str
+
+    class Config:
+        from_attributes = True
