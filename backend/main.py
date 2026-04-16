@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
-from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy import create_engine, Column, Integer, String, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 from pydantic import BaseModel
@@ -8,6 +8,8 @@ from pydantic import BaseModel
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import relationship
 
+import random
+import string
 
 
 ########## ----------------------
@@ -22,6 +24,11 @@ def hash_password(password: str):
 
 def verify_password(plain_password, hashed_password):
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+
+def generate_code():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
 #############-------------
 ######H A S H E R   __ END
 
@@ -40,18 +47,27 @@ class UserModel(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True, index=True) # New!
     hashed_password = Column(String)
 
-    # This links the user to their notes
+    is_verified = Column(Boolean, default=False) # New!
+
+    verification_code = Column(String, nullable=True) # New!
     notes = relationship("NoteModel", back_populates="owner")
 
 class UserCreate(BaseModel):
     username: str
+    email: str
     password: str
+    again_password: str
 
 class UserLogin(BaseModel):
     username: str
     password: str
+
+class UserVerify(BaseModel):
+    username: str
+    code: str
 
 
 # 2. Database Model (How it looks in SQLite)
@@ -124,36 +140,77 @@ def get_db():
 #####---------------------------------
 ## U S E R S __ A Ps
 
-@app.post("/users/")
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    # Check if user already exists
-    existing_user = db.query(UserModel).filter(UserModel.username == user.username).first()
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username already taken")
+@app.post("/register")# register ---------------------------------------- register
+def register(user: UserCreate, db: Session = Depends(get_db)):
+
+    if db.query(UserModel).filter(UserModel.username == user.username).first():
+        raise HTTPException(status_code=400, detail="Username already exists")
     
-    # Hash the password!
+    if db.query(UserModel).filter(UserModel.email == user.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    if user.password != user.again_password:
+        raise HTTPException(status_code=401, detail="The passwords do not match") # 401 ?
+
+
+    code = generate_code()
+    
     new_user = UserModel(
-        username=user.username, 
-        hashed_password=hash_password(user.password)
+        username=user.username,
+        email=user.email,
+        hashed_password=hash_password(user.password),
+        verification_code=code,
+        is_verified=False
     )
+    
     db.add(new_user)
     db.commit()
-    db.refresh(new_user)
-    return {"message": "User created", "id": new_user.id}
+    
+    # 3. TODO: send mails maybe ? 
+    print(f"DEBUG: Verification code for {user.email} is {code}")
+    
+    return {"message": "User created. Please check your email for the code."}
+
+@app.post('/verify')
+def verify_code(user: UserVerify, db:Session = Depends(get_db)):
+    # use user.password as the verifycation code
+    user_indb = db.query(UserModel).filter(UserModel.username == user.username).first()
+    
+    if not user_indb:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user_indb.is_verified == True:
+        return {"Username":user_indb.username, "Message": "user aready verified"}
+
+    if user_indb.verification_code == user.code:
+        user_indb.is_verified = True
+        user_indb.verification_code = None  # Clean up the code after use
+        db.commit() # Save the change to notes.db
+        return {"message": "Verification successful! You can now login."}
+    else:
+        raise HTTPException(status_code=400, detail="Wrong code, try again.")
+
 
 @app.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
     # 1. Find the user
     db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
     
+    if not db_user.is_verified:
+        return {"message": "You have to verify first"}
+
     if not db_user:
         raise HTTPException(status_code=400, detail="Invalid Username")
 
-    # 2. Check the password using our helper from earlier
+    # 2. Check the password
     if not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Wrong Password, mate.")
 
     return {"message": "Login successful", "user_id": db_user.id}
+
+@app.get("/users")
+def read_users(db: Session = Depends(get_db)):
+    return db.query(UserModel).all()
 
 
 ########----------------------------------
