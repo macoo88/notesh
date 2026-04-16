@@ -9,6 +9,23 @@ const toggleRegister = () => {
 }
 //
 
+//toogle login
+const showLogin = ref(false)
+
+const toggleLogin = () => {
+  showLogin.value = !showLogin.value
+}
+
+//
+
+const switchToRegister = () => {
+  showLogin.value = false;    
+  showRegister.value = true;  
+}
+const switchToLogin = () => {
+  showRegister.value = false;    
+  showLogin.value = true;  
+}
 </script>
 
 <template>
@@ -22,7 +39,7 @@ const toggleRegister = () => {
         </div>
         
         <div class="nav-buttons">
-          <button class="btn btn-login" >Login</button>
+          <button class="btn btn-login" @click="toggleLogin" >Login</button>
           <button class="btn btn-register" @click="toggleRegister" >Register</button>
         </div>
       </div>
@@ -48,7 +65,7 @@ const toggleRegister = () => {
         Noha
       </div>
     </footer>
-
+    <!-- --- REGISTER  --- -->
     <div v-if="showRegister " class="modal-overlay" @click.self ="toggleRegister">
       <div class="modal-content">
         <div class="register">
@@ -58,7 +75,7 @@ const toggleRegister = () => {
               <p>Already have an account ?</p>
               <div class="register_form_login_button">
                 <p> Login</p>
-                <button>here</button>
+                <button  @click= "switchToLogin ">here</button>
               </div>
           
             </div>
@@ -75,6 +92,34 @@ const toggleRegister = () => {
         </div>
       </div>
     </div>
+    <!-- end of register -->
+
+    <!-- --- LOGIN  --- -->
+     <div v-if="showLogin" class="modal-overlay" @click.self="toggleLogin">
+      <div class="modal-content">
+        <div class="login">
+          <div class="login_form">
+            <h1>Login</h1>
+              <div class="register_form_login">
+                <p>Don't have an account ?</p>
+                <div class="register_form_login_button">
+                  <p> Register</p>
+                  <button  @click= "switchToRegister ">here</button>
+                </div>
+            </div>
+          </div>
+
+          <input type="text" placeholder="Username" class="Username_Login">
+          <input type="password" placeholder="Password" class="Password_Login">
+  
+          <button class="btn btn-login" @click="toggleLogin">Login</button>
+          
+           <button class="close-btn" @click="toggleLogin">✕</button>
+
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
