@@ -11,6 +11,12 @@ from sqlalchemy.orm import relationship
 import random
 import string
 
+from fastapi.middleware.cors import CORSMiddleware
+
+from models import UserModel, NoteModel
+from schemas import UserCreate, UserLogin, UserVerify, NoteCreate, NoteView
+
+from database import SessionLocal, engine, Base, get_db
 
 ########## ----------------------
 ## H A S H E R
@@ -32,70 +38,9 @@ def generate_code():
 #############-------------
 ######H A S H E R   __ END
 
-
-
-# 1. Database Setup (SQLite)
-DATABASE_URL = "sqlite:///./notes.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-####---------------------------------------------------------
-############## M O D E L S
-
-class UserModel(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True) # New!
-    hashed_password = Column(String)
-
-    is_verified = Column(Boolean, default=False) # New!
-
-    verification_code = Column(String, nullable=True) # New!
-    notes = relationship("NoteModel", back_populates="owner")
-
-class UserCreate(BaseModel):
-    username: str
-    email: str
-    password: str
-    again_password: str
-
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-class UserVerify(BaseModel):
-    username: str
-    code: str
-
-
-# 2. Database Model (How it looks in SQLite)
-class NoteModel(Base):
-    __tablename__ = "notes"
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String)
-    content = Column(Text)
-    owner_id = Column(Integer, ForeignKey("users.id")) # <--- Link!
-
-    owner = relationship("UserModel", back_populates="notes")
-
-# What the user sends TO you (POST)
-class NoteCreate(BaseModel):
-    title: str
-    content: str
-
-# What you send BACK to the user (GET)
-class NoteView(NoteCreate):
-    id: int # Now the ID is included!
-
-    class Config:
-        from_attributes = True
-
-#####------------------------------------------------------------
-##################### M O D E L S __ END
-
 Base.metadata.create_all(bind=engine)
+
+
 
 # 3. Pydantic Schema (How it looks in JSON)
 class NoteSchema(BaseModel):
@@ -109,33 +54,14 @@ class NoteSchema(BaseModel):
 app = FastAPI()
 
 
-## 1. Create a session manually
-#db = SessionLocal()
-#
-#try:
-#    # 2. Create the note
-#    # Pro-tip: Don't manually set id=1. Let SQLite do it automatically!
-#    new_note = NoteModel(title="My First Note", content="This is the content!")
-#    
-#    # 3. Add and commit
-#    db.add(new_note)
-#    db.commit()
-#    print("Note saved successfully!")
-#except Exception as e:
-#    print(f"Oops, something went wrong: {e}")
-#finally:
-#    # 4. Always close it!
-#    db.close()
-
-
-
-# Dependency to get database session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+#allow all connections ?
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, change "*" to his specific URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 #####---------------------------------
 ## U S E R S __ A Ps
@@ -211,6 +137,10 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 @app.get("/users")
 def read_users(db: Session = Depends(get_db)):
     return db.query(UserModel).all()
+
+
+#####---------------------------------
+## U S E R S __ A Ps    E N D
 
 
 ########----------------------------------
