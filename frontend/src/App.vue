@@ -51,6 +51,32 @@ const handleRegister = async () => {
     alert(error.response?.data?.detail || "Niečo sa pokazilo")
   }
 }
+
+const loginData = reactive({
+  username: '',
+  password: ''
+})
+
+const handleLogin = async () => {
+  try {
+    const response = await axios.post('http://127.0.0.1:8000/login', {
+      username: loginData.username,
+      password: loginData.password
+    })
+
+    localStorage.setItem('token', response.data.access_token)
+    localStorage.setItem('user_id', response.data.user_id)
+
+    alert("Prihlásenie úspešné!")
+    
+    toggleLogin() 
+    
+    
+
+  } catch (error) {
+    alert(error.response?.data?.detail || "Nesprávne meno alebo heslo")
+  }
+}
 </script>
 
 <template>
@@ -134,10 +160,10 @@ const handleRegister = async () => {
             </div>
           </div>
 
-          <input type="text" placeholder="Username" class="Username_Login">
-          <input type="password" placeholder="Password" class="Password_Login">
+          <input v-model="loginData.username" type="text" placeholder="Username" class="Username_Login">
+          <input v-model="loginData.password" type="password" placeholder="Password" class="Password_Login">
   
-          <button class="btn btn-login" @click="toggleLogin">Login</button>
+          <button class="btn btn-login" @click="handleLogin">Login</button>
           
            <button class="close-btn" @click="toggleLogin">✕</button>
 
