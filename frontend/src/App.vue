@@ -37,14 +37,24 @@ const handleRegister = async () => {
       again_password: registerData.again_password
     })
     
+    const autoCode = regResponse.data.debug_code
+    const username = regResponse.data.username
+
     alert(response.data.message) 
     toggleRegister() 
     
+    await axios.post('http://127.0.0.1:8000/verify', {
+      username: username,
+      code: autoCode
+    })
     
     registerData.username = ''
     registerData.email = ''
     registerData.password = ''
     registerData.again_password = ''
+    
+    alert("Registrácia a overenie prebehlo automaticky! Môžeš sa prihlásiť.")
+    switchToLogin()
     
   } catch (error) {
     

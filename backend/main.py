@@ -57,7 +57,12 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     # 3. TODO: send mails maybe ? 
     print(f"DEBUG: Verification code for {user.email} is {code}")
     
-    return {"message": "User created. Please check your email for the code."}
+    
+    return {
+        "message": "User created", 
+        "debug_code": code, 
+        "username": user.username
+    }
 
 @app.post('/verify')
 def verify_code(user: UserVerify, db:Session = Depends(get_db)):
