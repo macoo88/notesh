@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Header
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.orm import relationship
 
@@ -9,6 +9,13 @@ from schemas import UserCreate, UserLogin, UserVerify, NoteCreate, NoteView
 
 from database import SessionLocal, engine, Base, get_db
 import auth
+
+
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+# This tells FastAPI: "Look for a token at the /login endpoint"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -25,8 +32,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-#####---------------------------------
+
+
+from jose import jwt, JWTError
+from auth import SECRET_KEY, ALGORITHM
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        # 1. Decode the token
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        user_id: int = payload.get("id")
+        
+        if username is None or user_id is None:
+            raise HTTPException(status_code=400, detail="credentials_exception")
+            
+    except JWTError:
+        raise HTTPException(status_code=400, detail="credentials_exception")
+
+    # 2. Find the actual user in the DB
+    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    if user is None:
+        raise credentials_exception
+        
+    return user # This returns the full User object!#####---------------------------------
 ## U S E R S __ A Ps
+
+@app.get("/users/me")
+def read_users_me(current_user: UserModel = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "is_verified": current_user.is_verified
+    }
 
 @app.post("/register")# register ---------------------------------------- register
 def register(user: UserCreate, db: Session = Depends(get_db)):
@@ -84,31 +128,44 @@ def verify_code(user: UserVerify, db:Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Wrong code, try again.")
 
 
+#@app.post("/login")
+#def login(user: UserLogin, db: Session = Depends(get_db)):
+#    # 1. Find the user
+#    db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
+#    
+#    if not db_user.is_verified:
+#        return {"message": "You have to verify first"}
+#
+#    if not db_user:
+#        raise HTTPException(status_code=400, detail="Invalid Username")
+#
+#    # 2. Check the password
+#    if not auth.verify_password(user.password, db_user.hashed_password):
+#        raise HTTPException(status_code=400, detail="Wrong Password, mate.")
+#    
+#    access_token = auth.create_access_token(data={"sub": db_user.username, "id": db_user.id})
+#    
+#    return {
+#        "access_token": access_token, 
+#        "token_type": "bearer",
+#        "user_id": db_user.id
+#    }
+#
+#
+#    #return {"message": "Login successful", "user_id": db_user.id}
+
 @app.post("/login")
-def login(user: UserLogin, db: Session = Depends(get_db)):
-    # 1. Find the user
-    db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
+# Change 'user: UserLogin' to 'form_data: OAuth2PasswordRequestForm = Depends()'
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # Now use form_data.username instead of user.username
+    db_user = db.query(UserModel).filter(UserModel.username == form_data.username).first()
     
-    if not db_user.is_verified:
-        return {"message": "You have to verify first"}
+    if not db_user or not auth.verify_password(form_data.password, db_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect username or password")
 
-    if not db_user:
-        raise HTTPException(status_code=400, detail="Invalid Username")
-
-    # 2. Check the password
-    if not auth.verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=400, detail="Wrong Password, mate.")
-    
     access_token = auth.create_access_token(data={"sub": db_user.username, "id": db_user.id})
-    
-    return {
-        "access_token": access_token, 
-        "token_type": "bearer",
-        "user_id": db_user.id
-    }
+    return {"access_token": access_token, "token_type": "bearer"}
 
-
-    #return {"message": "Login successful", "user_id": db_user.id}
 
 @app.get("/users")
 def read_users(db: Session = Depends(get_db)):
