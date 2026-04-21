@@ -1,9 +1,26 @@
 <template>
-  <div class="notes-page">
-    <h1>Moje Poznámky</h1>
-    <p>Ak toto vidíš, presmerovanie funguje!</p>
-    <button @click="logout">Odhlásiť sa</button>
+  <div class="notesView">
+
+    <!-- <button @click="logout">Odhlásiť sa</button> -->
+    <header class="main-header">
+      <div class="container">
+        <div class="logo-area">
+          <img src="@/assets/icon.webp" alt="Notes logo" class="notes-logo" />
+          <h1 class="notes-title">Notes</h1>
+      </div>
+      
+      <div class="nav-buttons">
+        <button class="btn btn-login" @click="logout" >Logout</button>
+        
+        <button class="profileImg">
+          <img src="@/assets/user.png" alt="Profile Image" />
+        </button>
+      </div>
+
+    </div>
+   </header>
   </div>
+
 </template>
 
 <script setup>
@@ -18,9 +35,4 @@ const logout = () => {
 }
 </script>
 
-<style scoped>
-.notes-page {
-  padding: 20px;
-  text-align: center;
-}
-</style>
+<style src="@/assets/loginPage.css"></style>
