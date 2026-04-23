@@ -27,6 +27,7 @@ class UserModel(Base):
     verification_code = Column(String, nullable=True) # New!
     #notes = relationship("NoteModel", back_populates="owner")
     joined_classes = relationship("ClassModel", secondary=user_classes, back_populates="members")
+    notes = relationship("NoteModel", back_populates="owner")
 
 
 class ClassModel(Base):
@@ -39,18 +40,28 @@ class ClassModel(Base):
 
     # Relationships
     members = relationship("UserModel", secondary=user_classes, back_populates="joined_classes")
+    notes = relationship("NoteModel", back_populates="class_parent")
+    
 
 
+class NoteModel(Base):
+    __tablename__ = "notes"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String)
+    content = Column(Text)
+    
+    # NEW: Linking to a class
+    class_id = Column(Integer, ForeignKey("classes.id"))
+    
+    # Categorization for your "Subjects/Topics" goal
+    subject = Column(String, default="General")
+    topic = Column(String, nullable=True)
+    
+    # Metadata
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(String) # You can use datetime later
 
-#class NoteModel(Base):
-#    __tablename__ = "notes"
-#    id = Column(Integer, primary_key=True, index=True)
-#    title = Column(String)
-#    content = Column(Text)
-#    subject = Column(String) # e.g., "Math"
-#    topic = Column(String)   # e.g., "Calculus"
-#    image_path = Column(String, nullable=True) # For your "Notes as Photos" goal
-#    owner_id = Column(Integer, ForeignKey("users.id"))
-
+    owner = relationship("UserModel", back_populates="notes")
+    class_parent = relationship("ClassModel", back_populates="notes")
 #####------------------------------------------------------------
 ##################### M O D E L S __ END

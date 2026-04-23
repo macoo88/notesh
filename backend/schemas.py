@@ -30,6 +30,12 @@ class UserView(BaseModel):
 class NoteCreate(BaseModel):
     title: str
     content: str
+#class NoteCreate(BaseModel):
+#    title: str
+#    content: str
+#    subject: str = "General"  # Giving it a default value
+#    #topic: str = None         # This can be optional
+
 
 # What you send BACK to the user (GET)
 class NoteView(NoteCreate):

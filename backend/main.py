@@ -61,8 +61,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_exception
         
-    return user # This returns the full User object!#####---------------------------------
+    return user # This returns the full User object!
+
+#####---------------------------------
 ## U S E R S __ A Ps
+
 @app.get("/users/me", response_model=schemas.UserView) # Use a schema to filter sensitive data
 def read_users_me(current_user: models.UserModel = Depends(get_current_user)):
     return current_user
@@ -202,34 +205,41 @@ def join_class(invite_code: str, db: Session = Depends(get_db), current_user: mo
 def read_root():
     return {"message": "hello"}
 
-##################
-## Get all notes ##
-#############
-#@app.get("/notes/", response_model=list[schemas.NoteView]) # It returns a LIST of notes
-#def get_notes(db: Session = Depends(get_db)):
-#    return db.query(models.NoteModel).all()
-#
-#
-######################
-###  Get note via its ID ##
-#############################
-#@app.get("/notes/{note_id}", response_model=schemas.NoteView)
-#def get_note(note_id: int, db: Session = Depends(get_db)):
-#    # .first() grabs the one result, or None if it doesn't exist
-#    
-#    note = db.query(models.NoteModel).filter(models.NoteModel.id == note_id).first()
-#    if not note:
-#        raise HTTPException(status_code=404, detail="Note not found, mate.") 
-#    return note
-#
-#
-#
-## Create a note
-#@app.post("/notes/", response_model=schemas.NoteView) # It will return the note WITH the new ID
-#def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
-#    # We turn the 'note' (Schema) into a 'new_note' (Model)
-#    db_note = models.NoteModel(title=note.title, content=note.content)
-#    db.add(db_note)
-#    db.commit()
-#    db.refresh(db_note) # This gets the ID that SQLite just generated
-#    return db_note
+@app.get("/classes/{class_id}/notes")
+def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+    
+    if current_user not in target_class.members:
+        raise HTTPException(status_code=403, detail="Join the class to see notes")
+
+    return target_class.notes # This returns all notes linked to this class
+
+@app.post("/classes/{class_id}/notes")
+def create_note_in_class(
+    class_id: int, 
+    note: schemas.NoteCreate, 
+    db: Session = Depends(get_db), 
+    current_user: models.UserModel = Depends(get_current_user)
+):
+    # 1. Check if class exists
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+    if not target_class:
+        raise HTTPException(status_code=404, detail="Class not found")
+
+    # 2. Security: Is the user a member of this class?
+    if current_user not in target_class.members:
+        raise HTTPException(status_code=403, detail="You are not a member of this class")
+
+    # 3. Create the note
+    new_note = models.NoteModel(
+        title=note.title,
+        content=note.content,
+        class_id=class_id,
+        owner_id=current_user.id,
+        #subject=note.subject,
+        #topic=note.topic
+    )
+    
+    db.add(new_note)
+    db.commit()
+    return {"message": "Note posted to class!"}
