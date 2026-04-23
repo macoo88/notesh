@@ -4,11 +4,12 @@ from sqlalchemy.orm import relationship
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from models import UserModel, NoteModel
-from schemas import UserCreate, UserLogin, UserVerify, NoteCreate, NoteView
+import models
+import schemas
 
 from database import SessionLocal, engine, Base, get_db
 import auth
+import random, string
 
 
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -56,29 +57,28 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=400, detail="credentials_exception")
 
     # 2. Find the actual user in the DB
-    user = db.query(UserModel).filter(UserModel.id == user_id).first()
+    user = db.query(models.UserModel).filter(models.UserModel.id == user_id).first()
     if user is None:
         raise credentials_exception
         
     return user # This returns the full User object!#####---------------------------------
 ## U S E R S __ A Ps
+@app.get("/users/me", response_model=schemas.UserView) # Use a schema to filter sensitive data
+def read_users_me(current_user: models.UserModel = Depends(get_current_user)):
+    return current_user
+@app.get("/users/me/classes")
+def get_my_classes(current_user: UserModel = Depends(get_current_user)):
+    return current_user.joined_classes
 
-@app.get("/users/me")
-def read_users_me(current_user: UserModel = Depends(get_current_user)):
-    return {
-        "id": current_user.id,
-        "username": current_user.username,
-        "email": current_user.email,
-        "is_verified": current_user.is_verified
-    }
+
 
 @app.post("/register")# register ---------------------------------------- register
-def register(user: UserCreate, db: Session = Depends(get_db)):
+def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
-    if db.query(UserModel).filter(UserModel.username == user.username).first():
+    if db.query(models.UserModel).filter(models.UserModel.username == user.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     
-    if db.query(UserModel).filter(UserModel.email == user.email).first():
+    if db.query(models.UserModel).filter(models.UserModel.email == user.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     if user.password != user.again_password:
@@ -87,7 +87,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
     code = auth.generate_code()
     
-    new_user = UserModel(
+    new_user = models.UserModel(
         username=user.username,
         email=user.email,
         hashed_password=auth.hash_password(user.password),
@@ -109,9 +109,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     }
 
 @app.post('/verify')
-def verify_code(user: UserVerify, db:Session = Depends(get_db)):
+def verify_code(user: schemas.UserVerify, db:Session = Depends(get_db)):
     # use user.password as the verifycation code
-    user_indb = db.query(UserModel).filter(UserModel.username == user.username).first()
+    user_indb = db.query(models.UserModel).filter(models.UserModel.username == user.username).first()
     
     if not user_indb:
         raise HTTPException(status_code=404, detail="User not found")
@@ -128,37 +128,11 @@ def verify_code(user: UserVerify, db:Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Wrong code, try again.")
 
 
-#@app.post("/login")
-#def login(user: UserLogin, db: Session = Depends(get_db)):
-#    # 1. Find the user
-#    db_user = db.query(UserModel).filter(UserModel.username == user.username).first()
-#    
-#    if not db_user.is_verified:
-#        return {"message": "You have to verify first"}
-#
-#    if not db_user:
-#        raise HTTPException(status_code=400, detail="Invalid Username")
-#
-#    # 2. Check the password
-#    if not auth.verify_password(user.password, db_user.hashed_password):
-#        raise HTTPException(status_code=400, detail="Wrong Password, mate.")
-#    
-#    access_token = auth.create_access_token(data={"sub": db_user.username, "id": db_user.id})
-#    
-#    return {
-#        "access_token": access_token, 
-#        "token_type": "bearer",
-#        "user_id": db_user.id
-#    }
-#
-#
-#    #return {"message": "Login successful", "user_id": db_user.id}
-
 @app.post("/login")
 # Change 'user: UserLogin' to 'form_data: OAuth2PasswordRequestForm = Depends()'
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     # Now use form_data.username instead of user.username
-    db_user = db.query(UserModel).filter(UserModel.username == form_data.username).first()
+    db_user = db.query(models.UserModel).filter(models.UserModel.username == form_data.username).first()
     
     if not db_user or not auth.verify_password(form_data.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
@@ -169,11 +143,56 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
 @app.get("/users")
 def read_users(db: Session = Depends(get_db)):
-    return db.query(UserModel).all()
+    return db.query(models.UserModel).all()
 
 
-#####---------------------------------
 ## U S E R S __ A Ps    E N D
+#########---------------------------------
+
+
+
+
+########----------------------------------
+######## C L A S S E S  __ A Ps
+
+@app.post("/classes/create")
+def create_class(name: str, description: str, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+    # Generate a random 8-character invite code
+    invite = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    
+    new_class = models.ClassModel(
+        name=name, 
+        description=description, 
+        invite_code=invite, 
+        owner_id=current_user.id
+    )
+    
+    # Automatically add the creator as a member
+    new_class.members.append(current_user)
+    
+    db.add(new_class)
+    db.commit()
+    return {"message": "Class created", "invite_code": invite}
+
+
+@app.post("/classes/join/{invite_code}")
+def join_class(invite_code: str, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.invite_code == invite_code).first()
+    
+    if not target_class:
+        raise HTTPException(status_code=404, detail="Invalid invite code")
+    
+    if current_user in target_class.members:
+        return {"message": "You are already in this class"}
+
+    target_class.members.append(current_user)
+    db.commit()
+    return {"message": f"Joined {target_class.name} successfully!"}
+
+######## C L A S S E S  __ A Ps       E N D
+########----------------------------------
+
+
 
 
 ########----------------------------------
@@ -186,31 +205,31 @@ def read_root():
 ##################
 ## Get all notes ##
 #############
-@app.get("/notes/", response_model=list[NoteView]) # It returns a LIST of notes
-def get_notes(db: Session = Depends(get_db)):
-    return db.query(NoteModel).all()
-
-
-#####################
-##  Get note via its ID ##
-############################
-@app.get("/notes/{note_id}", response_model=NoteView)
-def get_note(note_id: int, db: Session = Depends(get_db)):
-    # .first() grabs the one result, or None if it doesn't exist
-    
-    note = db.query(NoteModel).filter(NoteModel.id == note_id).first()
-    if not note:
-        raise HTTPException(status_code=404, detail="Note not found, mate.") 
-    return note
-
-
-
-# Create a note
-@app.post("/notes/", response_model=NoteView) # It will return the note WITH the new ID
-def create_note(note: NoteCreate, db: Session = Depends(get_db)):
-    # We turn the 'note' (Schema) into a 'new_note' (Model)
-    db_note = NoteModel(title=note.title, content=note.content)
-    db.add(db_note)
-    db.commit()
-    db.refresh(db_note) # This gets the ID that SQLite just generated
-    return db_note
+#@app.get("/notes/", response_model=list[schemas.NoteView]) # It returns a LIST of notes
+#def get_notes(db: Session = Depends(get_db)):
+#    return db.query(models.NoteModel).all()
+#
+#
+######################
+###  Get note via its ID ##
+#############################
+#@app.get("/notes/{note_id}", response_model=schemas.NoteView)
+#def get_note(note_id: int, db: Session = Depends(get_db)):
+#    # .first() grabs the one result, or None if it doesn't exist
+#    
+#    note = db.query(models.NoteModel).filter(models.NoteModel.id == note_id).first()
+#    if not note:
+#        raise HTTPException(status_code=404, detail="Note not found, mate.") 
+#    return note
+#
+#
+#
+## Create a note
+#@app.post("/notes/", response_model=schemas.NoteView) # It will return the note WITH the new ID
+#def create_note(note: schemas.NoteCreate, db: Session = Depends(get_db)):
+#    # We turn the 'note' (Schema) into a 'new_note' (Model)
+#    db_note = models.NoteModel(title=note.title, content=note.content)
+#    db.add(db_note)
+#    db.commit()
+#    db.refresh(db_note) # This gets the ID that SQLite just generated
+#    return db_note

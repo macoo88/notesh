@@ -15,7 +15,18 @@ class UserVerify(BaseModel):
     username: str
     code: str
 
-# What the user sends TO you (POST)
+class UserView(BaseModel):
+    id: int
+    username: str
+    email: str
+    is_verified: bool
+
+    class Config:
+        from_attributes = True
+
+
+
+
 class NoteCreate(BaseModel):
     title: str
     content: str
