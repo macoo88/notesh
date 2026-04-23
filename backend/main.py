@@ -67,7 +67,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 def read_users_me(current_user: models.UserModel = Depends(get_current_user)):
     return current_user
 @app.get("/users/me/classes")
-def get_my_classes(current_user: UserModel = Depends(get_current_user)):
+def get_my_classes(current_user: models.UserModel = Depends(get_current_user)):
     return current_user.joined_classes
 
 
