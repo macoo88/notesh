@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue'
 // Importujeme novú stranu (musíš si ju vytvoriť vo views/NotesView.vue)
 // Namiesto '../views/NotesView.vue' skús toto:
 import NotesView from '@/views/NotesView.vue'
+import MyClasses from '@/views/MyClasses.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -17,6 +18,12 @@ const router = createRouter({
       name: 'notes',
       component: NotesView,
       // Táto meta informácia nám pomôže strážiť stránku
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/my-classes',
+      name: 'my-classes',
+      component: MyClasses,
       meta: { requiresAuth: true }
     },
     {

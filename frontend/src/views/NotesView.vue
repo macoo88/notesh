@@ -21,13 +21,13 @@
 
     <main class="notes-main">
       <div class="Class_btns">
-        <button class="myClasses_btn" >
+        <button class="myClasses_btn"@click="router.push('/my-classes')"> >
           My Classes
         </button>
         <button class="createClasses_btn" @click="toggleCreateClass">
           Create Class
         </button>
-        <button class="joinClasses_btn">
+        <button class="joinClasses_btn" @click="toggleJoinClass">
           Join Class
         </button>
       </div>
@@ -60,6 +60,15 @@
         <button class="btn btn-create" @click="handleCreateClass">Create</button>
         <button class="btn btn-cancel" @click="toggleCreateClass">Cancel</button>
       </div>
+      <div v-if="joinClass" class="create-class-modal">
+        <h1>Join a Class</h1>
+        <div class="classInfo">
+          <input v-model="classData.name" type="text" placeholder="Invite Code" class="class-name-input" />
+        </div>
+        
+        <button class="btn btn-create" @click="handleJoinClass">Join </button>
+        <button class="btn btn-cancel" @click="toggleJoinClass">Cancel</button>
+      </div>
     </div>
   </div>
 
@@ -74,11 +83,14 @@ const router = useRouter()
 
 const showProfileMenu = ref(false)
 const createClass  = ref(false)
+const joinClass  = ref(false)
 
 const toggleCreateClass = () => {
   createClass.value = !createClass.value
 }
-
+const toggleJoinClass = () => {
+  joinClass.value = !joinClass.value
+}
 const toggleProfileMenu = () => {
   showProfileMenu.value = !showProfileMenu.value
 }
@@ -121,6 +133,34 @@ const handleCreateClass = async () => {
   } catch (error) {
     console.error(error);
     alert(error.response?.data?.detail || "Nepodarilo sa vytvoriť triedu. Skontroluj, či si prihlásený.");
+  }
+}
+
+const handleJoinClass = async () => {
+  try {
+    const token = localStorage.getItem('token');
+    const inviteCode = classData.value.name; // Kód, ktorý používateľ napísal
+
+    // URL musí končiť priamo tým kódom, napr. /join/ABCDEF12
+    const response = await axios.post(
+      `http://127.0.0.1:8000/classes/join/${inviteCode}`, 
+      {}, // 1. Prázdne body (dáta)
+      {
+        headers: {
+          Authorization: `Bearer ${token}` // 2. Konfigurácia s tokenom
+        }
+      }
+    );
+
+    alert(response.data.message || "Pridaný do triedy!");
+    
+    // Reset a zatvorenie
+    classData.value.name = '';
+    toggleJoinClass();
+
+  } catch (error) {
+    console.error(error);
+    alert(error.response?.data?.detail || "Neplatný kód alebo iná chyba.");
   }
 }
 </script>
