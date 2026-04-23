@@ -73,22 +73,26 @@ const loginData = reactive({
 
 const handleLogin = async () => {
   try {
-    const response = await axios.post('http://127.0.0.1:8000/login', {
-      username: loginData.username,
-      password: loginData.password
-    })
+    const params = new URLSearchParams();
+    params.append('username', loginData.username);
+    params.append('password', loginData.password);
 
-    localStorage.setItem('token', response.data.access_token)
-    localStorage.setItem('user_id', response.data.user_id)
+    const response = await axios.post('http://127.0.0.1:8000/login', params, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
 
-    alert("Prihlásenie úspešné!")
-    
-    toggleLogin() 
-    router.push('/notes')
-    
+    localStorage.setItem('token', response.data.access_token);
+    localStorage.setItem('user_id', response.data.user_id || ''); 
+
+    alert("Prihlásenie úspešné!");
+    toggleLogin(); 
+    router.push('/notes'); 
 
   } catch (error) {
-    alert(error.response?.data?.detail || "Nesprávne meno alebo heslo")
+    console.error(error);
+    alert(error.response?.data?.detail || "Nesprávne meno alebo heslo");
   }
 }
 </script>

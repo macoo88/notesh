@@ -1,7 +1,6 @@
 <template>
   <div class="notesView">
 
-    <!-- <button @click="logout">Odhlásiť sa</button> -->
     <header class="main-header">
       <div class="container">
         <div class="logo-area">
