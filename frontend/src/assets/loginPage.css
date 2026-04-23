@@ -66,9 +66,71 @@ width: 100%; max-width: 1920px;  margin: 0 auto;
   display: flex;
   gap: 20px;
 }
-.profileImg img {
+.profileImg {
   height: 60px;
   width: 60px;
-  
-  
+  border-radius: 50%;
+   overflow: hidden; 
+  background-color: transparent;
+}
+.profileImg img {
+  height: 60px;
+  width: 60px;  
+}
+
+.notes-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px 0;
+}
+.Class_btns{
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.myClasses_btn{
+  background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+}
+.createClasses_btn{
+  background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+}
+.joinClasses_btn{
+  background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+}
+
+.profile-menu {
+  position: absolute;
+  top: 80px; /* Pod hlavičkou */
+  right: 60px; /* Zarovnané s okrajem containeru */
+  background-color: #2e2e2e;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
