@@ -164,7 +164,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=400, detail="Incorrect username or password")
 
     access_token = auth.create_access_token(data={"sub": db_user.username, "id": db_user.id})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"access_token": access_token, "token_type": "bearer", "user_id": id}
 
 
 @app.get("/users")
