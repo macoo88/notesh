@@ -53,8 +53,8 @@
       <div v-if="createClass" class="create-class-modal">
         <h1>Create a New Class</h1>
         <div class="classInfo">
-          <input type="text" placeholder="Class Name" class="class-name-input" />
-          <input type="text" placeholder="Class Description" class="class-description-input" />
+          <input v-model="classData.name" type="text" placeholder="Class Name" class="class-name-input" />
+          <input v-model="classData.description" type="text" placeholder="Class Description" class="class-description-input" />
         </div>
         
         <button class="btn btn-create" @click="handleCreateClass">Create</button>
@@ -97,10 +97,12 @@ const classData = ref({
 const handleCreateClass = async () => {
   try {
     const token = localStorage.getItem('token'); // Tu je ten tvoj uložený kód!
+    const name = classData.value.name;
+    const desc = classData.value.description;
 
     // Posielame request na backend
     const response = await axios.post(
-      `http://127.0.0.1:8000/classes/create?name=${encodeURIComponent(classData.name)}&description=${encodeURIComponent(classData.description)}`,
+     `http://127.0.0.1:8000/classes/create?name=${encodeURIComponent(name)}&description=${encodeURIComponent(desc)}`,
       {}, // Telo je prázdne, lebo backend čaká Query parametre (pozri nižšie)
       {
         headers: {
