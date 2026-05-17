@@ -1,0 +1,239 @@
+.class-view{
+    color: white;
+}
+/* GLOBÁLNE NASTAVENIE PRE ROZLOŽENIE */
+.class-view-layout {
+  display: flex; 
+  height: calc(100vh - 70px); 
+  font-family: sans-serif;
+}
+
+.loading-state {
+  padding: 20px; 
+  text-align: center;
+}
+
+/* HLAVIČKA (Predpokladám, že štýly už máš, ale pre istotu flexbox) */
+.header-container {
+    display: flex;
+  align-items: center;
+  
+  
+  
+  justify-content: space-between; 
+  padding: 10px 20px;
+  width: 100%;
+  box-sizing: border-box;   
+}
+.header-container h1 {
+  margin: 0 auto; 
+  transform: translateX(-50%); 
+  position: absolute;
+  left: 50%;
+  
+  font-size: 3rem;
+}
+/* ĽAVÝ PANEL - SIDEBAR */
+.sidebar {
+  width: 250px; 
+    border-top: 2px solid rgba(255, 255, 255, 0.5);
+    border-left: 2px solid rgba(255, 255, 255, 0.5);
+    border-right: 2px solid rgba(255, 255, 255, 0.5);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+  
+    box-shadow: 
+    0 0 5px #ffffff,        /* 1. vrstva: tesne okolo rámu */
+    0 0 10px rgba(255, 255, 255, 0.6), /* 2. vrstva: stredne rozptýlené svietenie */
+    0 0 20px rgba(255, 255, 255, 0.4); /* 3. vrstva: veľké rozptýlené svetlo */
+
+    border-radius: 15px;  
+    
+  padding: 15px; 
+  display: flex; 
+  flex-direction: column;
+}
+
+.subjects-section {
+  flex: 90%;
+}
+
+.sidebar-title {
+  margin-top: 0; 
+  color: white;
+}
+
+.empty-text {
+  color: #666; 
+  font-style: italic;
+}
+
+.subjects-list {
+  list-style: none; 
+  padding: 0; 
+  margin: 0;
+}
+
+.subject-item {
+  padding: 10px;
+  margin-bottom: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: transparent;
+  font-weight: normal;
+  transition: background-color 0.2s;
+}
+
+.subject-item:hover {
+  background-color: #eaeaea;
+}
+
+/* Aktívny vybraný predmet */
+.active-subject {
+  background-color: #ddd !important;
+  font-weight: bold;
+}
+
+.sidebar-footer {
+  flex: 10%; 
+  display: flex;
+  align-items: center;
+}
+
+/* HLAVNÝ PANEL S OBSAHOM */
+.main-content {
+  flex: 1; 
+  display: flex; 
+  flex-direction: column; 
+  padding: 20px; 
+  overflow-y: auto;
+    border-top: 2px solid rgba(255, 255, 255, 0.5);
+    border-left: 2px solid rgba(255, 255, 255, 0.5);
+    border-right: 2px solid rgba(255, 255, 255, 0.5);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+  
+    box-shadow: 
+    0 0 5px #ffffff,        /* 1. vrstva: tesne okolo rámu */
+    0 0 10px rgba(255, 255, 255, 0.6), /* 2. vrstva: stredne rozptýlené svietenie */
+    0 0 20px rgba(255, 255, 255, 0.4); /* 3. vrstva: veľké rozptýlené svetlo */
+
+    border-radius: 15px;  
+    margin-left: 20px;
+}
+
+.notes-section {
+  margin-bottom: 30px; 
+  border-bottom: 2px solid #eee; 
+  padding-bottom: 20px;
+}
+
+.section-title {
+  margin-top: 0;
+}
+
+/* GRID PRE KARTY POZNÁMOK */
+.notes-grid {
+  display: grid; 
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); 
+  gap: 15px;
+}
+
+.note-card {
+  border: 1px solid #ccc; 
+  padding: 15px; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  background: white; 
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.note-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.note-card-title {
+  margin: 0 0 10px 0; 
+  color: #007acc;
+}
+
+.note-card-preview {
+  margin: 0; 
+  font-size: 0.9em; 
+  color: #555;
+}
+
+/* STAV KEĎ NIE JE VYBRANÝ PREDMET */
+.no-selection-state {
+  flex: 1; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  color: #999;
+}
+
+/* BOX S DETAILOM ROZKLIKNUTEJ POZNÁMKY */
+.note-detail-box {
+  background: #fff8db; 
+  border-left: 4px solid #f1c40f; 
+  padding: 20px; 
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.note-detail-title {
+  margin-top: 0;
+}
+
+.note-detail-divider {
+  border: 0; 
+  border-top: 1px solid #e0d090; 
+  margin-bottom: 15px;
+}
+
+.note-detail-content {
+  white-space: pre-wrap; 
+  line-height: 1.6; 
+  color: #2c3e50;
+}
+
+/* TLAČIDLÁ */
+.sn {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.btn-back {
+  background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+}
+
+.btn-back:hover {
+  background-color: #ddd;
+}
+
+.btn-add {
+  background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+  width: 100%;
+}
+
+.btn-add:hover {
+   background-color: #ddd;
+}

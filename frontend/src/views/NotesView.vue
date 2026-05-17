@@ -21,7 +21,7 @@
 
     <main class="notes-main">
       <div class="Class_btns">
-        <button class="myClasses_btn"@click="router.push('/my-classes')"> >
+        <button class="myClasses_btn"@click="router.push('/my-classes')"> 
           My Classes
         </button>
         <button class="createClasses_btn" @click="toggleCreateClass">

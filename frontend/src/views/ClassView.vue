@@ -6,41 +6,42 @@ import { useRoute, useRouter } from 'vue-router'
 const route = useRoute()
 const router = useRouter()
 
-// Get the class ID from the URL (e.g., if the URL is /classes/5)
+// Získanie ID triedy z URL
 const classId = route.params.id 
 
-// State variables
-const className = ref("Loading class...")
+// Reaktívne premenné
+const className = ref("Načítavam triedu...")
 const subjects = ref([])
 const notes = ref([])
 const activeNote = ref(null)
 const selectedSubject = ref("")
 const loading = ref(true)
 
+// Spoločné nastavenie pre Axios
 const token = localStorage.getItem('token')
 const axiosConfig = { headers: { Authorization: `Bearer ${token}` } }
 
 const loadPageData = async () => {
   try {
-    // 1. Optional: Fetch class details to get the real name (if you have an endpoint for it)
+    // Načítanie detailov triedy
     const classRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}`, axiosConfig)
     className.value = classRes.data.name
     
+    // Načítanie predmetov v triede
     const subjectsRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}/subjects`, axiosConfig)
     subjects.value = subjectsRes.data
   } catch (error) {
-    console.error("Chyba:", error)
+    console.error("Chyba pri načítavaní dát triedy:", error)
   } finally {
     loading.value = false;
   }
 }
 
-// Called when user clicks a subject
+// Kliknutie na konkrétny predmet
 const selectSubject = async (subjName) => {
   selectedSubject.value = subjName
-  activeNote.value = null // Reset active note view
+  activeNote.value = null // Reset zobrazenia detailu poznámky
   try {
-    // Fetch notes filtered by this specific subject
     const notesRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}/notes/${subjName}`, axiosConfig)
     notes.value = notesRes.data
   } catch (error) {
@@ -48,23 +49,28 @@ const selectSubject = async (subjName) => {
   }
 }
 
+// Pridanie novej poznámky
 async function addNote(){
-    const token = localStorage.getItem('token'); // Tu je ten tvoj uložený kód!
-    const response = await axios.post(
-        `http://127.0.0.1:8000/classes/${classId}/notes`, 
-        {
-          title: "Yes",
-          content: "maybe",
-          subject: "Nonexd",
-        }, // 1. Prázdne body (dáta)
-        {
-          headers: {
-            Authorization: `Bearer ${token}` // 2. Konfigurácia s tokenom
-          }
-        });
+  try {
+    await axios.post(
+      `http://127.0.0.1:8000/classes/${classId}/notes`, 
+      {
+        title: "Nová poznámka",
+        content: "Obsah poznámky...",
+        subject: selectedSubject.value || "Všeobecné",
+      }, 
+      axiosConfig
+    );
+    // Po pridaní obnovíme poznámky pre aktuálny predmet, ak je nejaký vybraný
+    if (selectedSubject.value) {
+      selectSubject(selectedSubject.value);
     }
+  } catch (error) {
+    console.error("Chyba pri pridávaní poznámky:", error)
+  }
+}
 
-// Called when user clicks a specific note card
+// Výber aktívnej poznámky na zobrazenie detailu
 const setActiveNote = (note) => {
   activeNote.value = note
 }
@@ -72,83 +78,97 @@ const setActiveNote = (note) => {
 onMounted(() => {
   loadPageData()
 })
+
+const showProfileMenu = ref(false)
+const toggleProfileMenu = () => {
+  showProfileMenu.value = !showProfileMenu.value
+}
+const logout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user_id')
+  router.push('/')
+}
 </script>
 
-
 <template>
+  <div class="class-view">
   <header class="main-header">
-    <div class="container">
-        <button class="btn" @click="router.push('/my-classes')">Späť na prehľad</button>
+    <div class="header-container">
+        <button class="btn btn-back" @click="router.push('/my-classes')">Späť na prehľad</button>
         <h1>Trieda #{{ className }}</h1>
     </div>
+              <div>
+            <button class="profileImg" @click="toggleProfileMenu">
+            <img src="@/assets/user.png" alt="Profile Image" />
+            </button>
+
+          <div v-if="showProfileMenu" class="profile-menu">
+         <p>User Profile</p>
+          <button @click="logout" class="btn btn-logout">Logout</button>
+       </div>
+
+      </div>
   </header>
   
-  <div v-if="loading" style="padding: 20px; text-align: center;">Načítavam...</div>
+  <div v-if="loading" class="loading-state">Načítavam...</div>
 
-  <div v-else style="display: flex; height: calc(100vh - 70px); font-family: sans-serif;">
+  <div v-else class="class-view-layout">
     
-    <div style="width: 250px; border-right: 2px solid #ccc; background: #f9f9f9; padding: 15px; display: flex; flex-direction: column;">
-        <div style="flex: 90%;">
-            <h3 style="margin-top: 0; color: #333;">Predmety</h3>
-            <div v-if="subjects.length === 0" style="color: #666; font-style: italic;">Zatiaľ žiadne predmety.</div>
+    <aside class="sidebar">
+        <div class="subjects-section">
+            <h3 class="sidebar-title">Predmety</h3>
+            <div v-if="subjects.length === 0" class="empty-text">Zatiaľ žiadne predmety.</div>
 
-            <ul style="list-style: none; padding: 0; margin: 0;">
+            <ul class="subjects-list">
               <li 
                 v-for="subj in subjects" 
                 :key="subj"
                 @click="selectSubject(subj)"
-                :style="{
-                  padding: '10px',
-                  marginBottom: '5px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  backgroundColor: selectedSubject === subj ? '#ddd' : 'transparent',
-                  fontWeight: selectedSubject === subj ? 'bold' : 'normal'
-                }"
+                :class="['subject-item', { 'active-subject': selectedSubject === subj }]"
               >
                 {{ subj }}
               </li>
             </ul>
         </div>
-        <div style="flex: 10%; align-content: center;">
-            <button class="btn" @click="addNote()">Add note</button>
+        <div class="sidebar-footer">
+            <button class="btn btn-add" @click="addNote()">Add note</button>
         </div>
-      
-      
-    </div>
+    </aside>
 
-    <div style="flex: 1; display: flex; flex-direction: column; padding: 20px; overflow-y: auto;">
+    <main class="main-content">
       
-      <div v-if="selectedSubject" style="margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px;">
-        <h3 style="margin-top: 0;">Poznámky pre: {{ selectedSubject }}</h3>
-        <div v-if="notes.length === 0" style="color: #666;">V tomto predmete nie sú žiadne poznámky.</div>
+      <div v-if="selectedSubject" class="notes-section">
+        <h3 class="section-title">Poznámky pre: {{ selectedSubject }}</h3>
+        <div v-if="notes.length === 0" class="empty-text">V tomto predmete nie sú žiadne poznámky.</div>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+        <div class="notes-grid">
           <div 
             v-for="note in notes" 
             :key="note.id"
             @click="setActiveNote(note)"
-            style="border: 1px solid #ccc; padding: 15px; border-radius: 6px; cursor: pointer; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"
+            class="note-card"
           >
-            <h4 style="margin: 0 0 10px 0; color: #007acc;">{{ note.title }}</h4>
-            <p style="margin: 0; font-size: 0.9em; color: #555;">
+            <h4 class="note-card-title">{{ note.title }}</h4>
+            <p class="note-card-preview">
               {{ note.content.substring(0, 50) }}{{ note.content.length > 50 ? '...' : '' }}
             </p>
           </div>
         </div>
       </div>
       
-      <div v-else style="flex: 1; display: flex; align-items: center; justify-content: center; color: #999;">
+      <div v-else class="no-selection-state">
         Vyber si predmet z ľavého menu pre zobrazenie poznámok.
       </div>
 
-      <div v-if="activeNote" style="background: #fff8db; border-left: 4px solid #f1c40f; padding: 20px; border-radius: 4px;">
-        <h2 style="margin-top: 0;">{{ activeNote.title }}</h2>
-        <hr style="border: 0; border-top: 1px solid #e0d090; margin-bottom: 15px;" />
-        <p style="white-space: pre-wrap; line-height: 1.6; color: #2c3e50;">{{ activeNote.content }}</p>
+      <div v-if="activeNote" class="note-detail-box">
+        <h2 class="note-detail-title">{{ activeNote.title }}</h2>
+        <hr class="note-detail-divider" />
+        <p class="note-detail-content">{{ activeNote.content }}</p>
       </div>
 
-    </div>
+    </main>
 
   </div>
+</div>
 </template>
+<style src="@/assets/classView.css"></style>

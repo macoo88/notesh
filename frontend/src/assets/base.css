@@ -295,17 +295,7 @@ width: 100%; max-width: 1920px;  margin: 0 auto;
   color: white;
 }
 
-/* sem som dal styling class karticiek .... kludne to premiestni nevyznam sa tu */
-.classes-grid{
-  display: grid;
-  column-gap: 100px;
-  row-gap: 100px;
-  grid-template-columns: repeat(auto-fill, 186px);
-  padding-left: 25px;
-  padding-right: 25px;
-}
-.class-card{
-  border: 1px solid black;
-  border-radius: 10%;
-  padding: 10px;
-}
+
+
+
+

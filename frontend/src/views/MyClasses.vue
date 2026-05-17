@@ -8,6 +8,10 @@ const myClasses = ref([])
 const loading = ref(true)
 const router = useRouter()
 
+const showProfileMenu = ref(false)
+const toggleProfileMenu = () => {
+  showProfileMenu.value = !showProfileMenu.value
+}
 const fetchClasses = async () => {
   try {
     const token = localStorage.getItem('token'); // Získame tvoj uložený token
@@ -34,17 +38,36 @@ const goToClass = (classId) => {
 onMounted(() => {
   fetchClasses();
 })
+const logout = () => {
+  localStorage.removeItem('token')
+  localStorage.removeItem('user_id')
+  router.push('/')
+}
 </script>
 <template>
+ <div class="myClassesPage">
+
   <header class="main-header">
     <div class="container">
-        <button class="btn" @click="router.push('/notes')">Home</button>
-        <h1>Moje Triedy</h1>
+      <button class="homeBtn" @click="router.push('/notes')">Home</button>
+          <h1>Moje Triedy</h1>
+
+          <div>
+            <button class="profileImg" @click="toggleProfileMenu">
+            <img src="@/assets/user.png" alt="Profile Image" />
+            </button>
+
+          <div v-if="showProfileMenu" class="profile-menu">
+         <p>User Profile</p>
+          <button @click="logout" class="btn btn-logout">Logout</button>
+       </div>
+
+      </div>
     </div>
 
   </header>
   
-  <div>
+  <div class="main-content-wrapper">
     <!-- Indikátor načítavania -->
     <div v-if="loading">Načítavam triedy...</div>
 
@@ -71,4 +94,7 @@ onMounted(() => {
       </div>
     </div>
   </div>
+ </div>
+
 </template>
+<style src="@/assets/myClasses.css"></style>

@@ -1,0 +1,82 @@
+header{
+    margin-bottom: 5px;
+}
+/* sem som dal styling class karticiek .... kludne to premiestni nevyznam sa tu */
+.classes-grid{
+  display: grid;
+  column-gap: 100px;
+  row-gap: 100px;
+  grid-template-columns: repeat(auto-fill, 186px);
+  padding-left: 25px;
+  padding-right: 25px;
+  padding-top: 25px;
+}
+.class-card{
+  border: 2.5px solid black;
+  border-radius: 10%;
+  padding: 10px;
+  display: flex;
+  flex-direction: column; 
+  gap: 15px;
+  justify-content: space-between;
+  
+}
+.homeBtn{
+  background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+}
+.myClassesPage{
+    color: white;
+}
+.btn-enter{
+  background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+}
+
+.container {
+  display: flex;
+  align-items: center; /* Vertikálne vycentrovanie (tlačidlo a nápis budú v jednej rovine) */
+  min-height: 60px;    /* Voliteľné: nastaví výšku headra */
+  position: relative;  /* Dôležité pre absolútne centrovanie nápisu */
+  width: 100%;
+}
+.main-header h1 {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: 4rem; /* Prispôsob si veľkosť, akú potrebuješ */
+}
+
+.main-content-wrapper{
+    border-top: 2px solid rgba(255, 255, 255, 0.5);
+    border-left: 2px solid rgba(255, 255, 255, 0.5);
+    border-right: 2px solid rgba(255, 255, 255, 0.5);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+  
+    box-shadow: 
+    0 0 5px #ffffff,        /* 1. vrstva: tesne okolo rámu */
+    0 0 10px rgba(255, 255, 255, 0.6), /* 2. vrstva: stredne rozptýlené svietenie */
+    0 0 20px rgba(255, 255, 255, 0.4); /* 3. vrstva: veľké rozptýlené svetlo */
+
+    border-radius: 15px;
+
+  min-height: calc(100vh - 80px); 
+  
+  margin: 0 20px 20px 20px; 
+  
+  box-sizing: border-box;
+
+}
