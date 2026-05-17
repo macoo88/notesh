@@ -1,10 +1,12 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
+import { useRouter } from 'vue-router'
 
 // Pole, do ktorého uložíme triedy z databázy
 const myClasses = ref([])
 const loading = ref(true)
+const router = useRouter()
 
 const fetchClasses = async () => {
   try {
@@ -24,15 +26,25 @@ const fetchClasses = async () => {
   }
 }
 
+const goToClass = (classId) => {
+  router.push(`/class/${classId}`)
+}
+
 // Spustí sa automaticky pri otvorení okna
 onMounted(() => {
   fetchClasses();
 })
 </script>
 <template>
-  <div class="my-classes-view">
-    <h1>Moje Triedy</h1>
+  <header class="main-header">
+    <div class="container">
+        <button class="btn" @click="router.push('/notes')">Home</button>
+        <h1>Moje Triedy</h1>
+    </div>
 
+  </header>
+  
+  <div>
     <!-- Indikátor načítavania -->
     <div v-if="loading">Načítavam triedy...</div>
 
@@ -53,7 +65,7 @@ onMounted(() => {
         </div>
         <p class="class-desc">{{ cls.description }}</p>
         
-        <button class="btn-enter" @click="goToClass(cls.id)">
+        <button class="btn btn-enter" @click="goToClass(cls.id)">
           Vstúpiť do triedy
         </button>
       </div>

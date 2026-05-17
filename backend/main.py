@@ -205,6 +205,17 @@ def join_class(invite_code: str, db: Session = Depends(get_db), current_user: mo
 def read_root():
     return {"message": "hello"}
 
+@app.get("/classes/{class_id}")
+def get_class_details(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+    
+    if current_user not in target_class.members:
+        raise HTTPException(status_code=403, detail="Join the class to see details")
+
+    return target_class # This returns all notes linked to this class
+
+
+
 @app.get("/classes/{class_id}/notes")
 def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
@@ -213,6 +224,35 @@ def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: 
         raise HTTPException(status_code=403, detail="Join the class to see notes")
 
     return target_class.notes # This returns all notes linked to this class
+
+@app.get("/classes/{class_id}/subjects")
+def get_class_subjects(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+    if not target_class or current_user not in target_class.members:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    subjects = db.query(models.NoteModel.subject).\
+        filter(models.NoteModel.class_id == class_id).\
+        distinct().all()
+    
+    return [s[0] for s in subjects]
+
+@app.get("/classes/{class_id}/notes/{subject}")
+def get_class_subject_notes(class_id: int, subject: str, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+    
+    if not target_class:
+        raise HTTPException(status_code=404, detail="Class not found")
+        
+    if current_user not in target_class.members:
+        raise HTTPException(status_code=403, detail="Join the class to see notes")
+
+    filtered_notes = db.query(models.NoteModel).filter(
+        models.NoteModel.class_id == class_id,
+        models.NoteModel.subject == subject
+    ).all()
+
+    return filtered_notes
 
 @app.post("/classes/{class_id}/notes")
 def create_note_in_class(
@@ -236,7 +276,7 @@ def create_note_in_class(
         content=note.content,
         class_id=class_id,
         owner_id=current_user.id,
-        #subject=note.subject,
+        subject=note.subject,
         #topic=note.topic
     )
     

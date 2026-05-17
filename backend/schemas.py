@@ -33,7 +33,7 @@ class NoteCreate(BaseModel):
 #class NoteCreate(BaseModel):
 #    title: str
 #    content: str
-#    subject: str = "General"  # Giving it a default value
+    subject: str = "General"  # Giving it a default value
 #    #topic: str = None         # This can be optional
 
 
