@@ -60,13 +60,13 @@
         <button class="btn btn-create" @click="handleCreateClass">Create</button>
         <button class="btn btn-cancel" @click="toggleCreateClass">Cancel</button>
       </div>
-      <div v-if="joinClass" class="create-class-modal">
+     <div v-if="joinClass" class="create-class-modal">
         <h1>Join a Class</h1>
         <div class="classInfo">
-          <input v-model="classData.name" type="text" placeholder="Invite Code" class="class-name-input" />
+          <input v-model="inviteCodeInput" type="text" placeholder="Invite Code" class="class-name-input" />
         </div>
         
-        <button class="btn btn-create" @click="handleJoinClass">Join </button>
+        <button class="btn btn-create" @click="handleJoinClass">Join</button>
         <button class="btn btn-cancel" @click="toggleJoinClass">Cancel</button>
       </div>
     </div>
@@ -84,6 +84,7 @@ const router = useRouter()
 const showProfileMenu = ref(false)
 const createClass  = ref(false)
 const joinClass  = ref(false)
+const inviteCodeInput = ref('')
 
 const toggleCreateClass = () => {
   createClass.value = !createClass.value
@@ -139,15 +140,19 @@ const handleCreateClass = async () => {
 const handleJoinClass = async () => {
   try {
     const token = localStorage.getItem('token');
-    const inviteCode = classData.value.name; // Kód, ktorý používateľ napísal
+    const inviteCode = inviteCodeInput.value.trim(); // <--- ZMENA TU
 
-    // URL musí končiť priamo tým kódom, napr. /join/ABCDEF12
+    if (!inviteCode) {
+      alert("Zadaj pozývací kód!");
+      return;
+    }
+
     const response = await axios.post(
       `http://127.0.0.1:8000/classes/join/${inviteCode}`, 
-      {}, // 1. Prázdne body (dáta)
+      {}, 
       {
         headers: {
-          Authorization: `Bearer ${token}` // 2. Konfigurácia s tokenom
+          Authorization: `Bearer ${token}`
         }
       }
     );
@@ -155,7 +160,7 @@ const handleJoinClass = async () => {
     alert(response.data.message || "Pridaný do triedy!");
     
     // Reset a zatvorenie
-    classData.value.name = '';
+    inviteCodeInput.value = ''; // <--- ZMENA TU
     toggleJoinClass();
 
   } catch (error) {
