@@ -1,8 +1,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router' // Importy tu máš, to je super!
 
+// !!! TIETO DVA RIADKY TI CHÝBALI A KVÔLI NIM TO PADALO !!!
 const route = useRoute()
 const router = useRouter()
 
@@ -10,12 +11,16 @@ const router = useRouter()
 const classId = route.params.id 
 
 // Reaktívne premenné
-const className = ref("Načítavam triedu...")
+const className = ref("")
 const subjects = ref([])
 const notes = ref([])
 const activeNote = ref(null)
 const selectedSubject = ref("")
 const loading = ref(true)
+
+// CHÝBAJÚCE PREMENNÉ PRE EDITÁCIU - PRIDANÉ TU:
+const isEditing = ref(false)
+const editingNoteId = ref(null)
 
 // Spoločné nastavenie pre Axios
 const token = localStorage.getItem('token')
@@ -24,8 +29,9 @@ const axiosConfig = { headers: { Authorization: `Bearer ${token}` } }
 const loadPageData = async () => {
   try {
     const classRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}`, axiosConfig)
-    className.value = classRes.data.name
-    await refreshSubjects() // Načíta predmety
+    // OPRAVA: Priraďujeme správne .name z backendu
+    className.value = classRes.data.name 
+    await refreshSubjects() 
   } catch (error) {
     console.error("Chyba pri načítavaní dát triedy:", error)
   } finally {
@@ -39,6 +45,8 @@ const refreshSubjects = async () => {
 }
 
 const openAddNoteModal = () => {
+  isEditing.value = false
+  editingNoteId.value = null
   newNoteData.value = {
     subject: selectedSubject.value || '',
     title: '',
@@ -50,7 +58,7 @@ const openAddNoteModal = () => {
 // Kliknutie na konkrétny predmet
 const selectSubject = async (subjName) => {
   selectedSubject.value = subjName
-  activeNote.value = null // Reset zobrazenia detailu poznámky
+  activeNote.value = null 
   try {
     const notesRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}/notes/${subjName}`, axiosConfig)
     notes.value = notesRes.data
@@ -65,23 +73,47 @@ async function handleAddNoteSubmit(){
     return
   }
   try {
-    await axios.post(
-      `http://127.0.0.1:8000/classes/${classId}/notes`, 
-      {
-        title: newNoteData.value.title,
-        content: newNoteData.value.content,
-        subject: newNoteData.value.subject.trim(),
-      }, 
-      axiosConfig
-    );
+    if (isEditing.value) {
+      // REŽIM ÚPRAWY -> PUT request (už bude fungovať, lebo sme ho pridali na backend)
+      await axios.put(
+        `http://127.0.0.1:8000/classes/${classId}/notes/${editingNoteId.value}`,
+        {
+          title: newNoteData.value.title,
+          content: newNoteData.value.content,
+          subject: newNoteData.value.subject.trim(),
+        },
+        axiosConfig
+      );
+    } else {
+      // REŽIM VYTVORENIA -> POST request
+      await axios.post(
+        `http://127.0.0.1:8000/classes/${classId}/notes`, 
+        {
+          title: newNoteData.value.title,
+          content: newNoteData.value.content,
+          subject: newNoteData.value.subject.trim(),
+        }, 
+        axiosConfig
+      );
+    }
+
     isModalOpen.value = false
     await refreshSubjects()
     await selectSubject(newNoteData.value.subject.trim())
+    
+    // BEZPEČNÁ AKTUALIZÁCIA DETAILU NA OBRAZOVKE:
+    activeNote.value = { 
+      id: editingNoteId.value,
+      title: newNoteData.value.title, 
+      content: newNoteData.value.content,
+      subject: newNoteData.value.subject.trim()
+    }
+
   } catch (error) {
-    console.error("Chyba pri pridávaní poznámky:", error)
+    console.error("Chyba pri ukladaní poznámky:", error)
+    alert(error.response?.data?.detail || "Nepodarilo sa uložiť zmeny.");
   }
 }
-
 // Výber aktívnej poznámky na zobrazenie detailu
 const setActiveNote = (note) => {
   activeNote.value = note
@@ -103,11 +135,26 @@ const logout = () => {
 
 // Stav pre modálne okno
 const isModalOpen = ref(false)
+
+
 const newNoteData = ref({
   subject: '',
   title: '',
   content: ''
 })
+
+const openEditNoteModal = (note) => {
+  isEditing.value = true
+  editingNoteId.value = note.id
+  
+  // Predvyplníme formulár modálneho okna aktuálnymi dátami
+  newNoteData.value = {
+    subject: note.subject,
+    title: note.title,
+    content: note.content
+  }
+  isModalOpen.value = true
+}
 
 </script>
 
@@ -116,8 +163,7 @@ const newNoteData = ref({
   <header class="main-header">
     <div class="header-container">
         <button class="btn btn-back" @click="router.push('/my-classes')">Späť na prehľad</button>
-        <h1>Trieda #{{ className }}</h1>
-    </div>
+            <h1>Trieda: {{ className }}</h1>    </div>
               <div>
             <button class="profileImg" @click="toggleProfileMenu">
             <img src="@/assets/user.png" alt="Profile Image" />
@@ -184,7 +230,11 @@ const newNoteData = ref({
       <div v-if="activeNote" class="note-detail-box">
         <h2 class="note-detail-title">{{ activeNote.title }}</h2>
         <hr class="note-detail-divider" />
-        <p class="note-detail-content">{{ activeNote.content }}</p>
+        <div class="note-detail-content-wrapper">
+          <p class="note-detail-content">{{ activeNote.content }}</p>
+        <button class="btn btn-edit" @click="openEditNoteModal(activeNote)">Upraviť</button>
+        </div>
+        
       </div>
 
     </main>
@@ -194,7 +244,7 @@ const newNoteData = ref({
 
 <div v-if="isModalOpen" class="modal-overlay" @click.self="isModalOpen = false">
     <div class="modal-content">
-      <h2>Pridať novú poznámku</h2>
+<h2>{{ isEditing ? 'Upraviť poznámku' : 'Pridať novú poznámku' }}</h2>
       <form @submit.prevent="handleAddNoteSubmit">
         <div class="form-group">
           <label>Predmet</label>
@@ -210,8 +260,7 @@ const newNoteData = ref({
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-cancel" @click="isModalOpen = false">Zrušiť</button>
-          <button type="submit" class="btn btn-submit">Vytvoriť</button>
-        </div>
+          <button type="submit" class="btn btn-submit">{{ isEditing ? 'Uložiť zmeny' : 'Vytvoriť' }}</button>        </div>
       </form>
     </div>
   </div>

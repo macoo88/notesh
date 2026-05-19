@@ -283,3 +283,35 @@ def create_note_in_class(
     db.add(new_note)
     db.commit()
     return {"message": "Note posted to class!"}
+
+
+
+#pridal som sem put co vytvorilo ai tak potom si to uprav jak potrebujes, 
+@app.put("/classes/{class_id}/notes/{note_id}")
+def update_note_in_class(
+    class_id: int,
+    note_id: int,
+    note: schemas.NoteCreate,
+    db: Session = Depends(get_db),
+    current_user: models.UserModel = Depends(get_current_user)
+):
+    # 1. Nájdeme poznámku v databáze
+    db_note = db.query(models.NoteModel).filter(
+        models.NoteModel.id == note_id,
+        models.NoteModel.class_id == class_id
+    ).first()
+    
+    if not db_note:
+        raise HTTPException(status_code=404, detail="Note not found")
+
+    # 2. Bezpečnostná kontrola: Môže ju upravovať iba jej autor alebo owner triedy?
+    if db_note.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own notes")
+
+    # 3. Prepíšeme staré hodnoty novými
+    db_note.title = note.title
+    db_note.content = note.content
+    db_note.subject = note.subject
+
+    db.commit()
+    return {"message": "Note updated successfully!"}
