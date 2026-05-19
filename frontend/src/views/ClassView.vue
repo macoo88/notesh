@@ -23,18 +23,28 @@ const axiosConfig = { headers: { Authorization: `Bearer ${token}` } }
 
 const loadPageData = async () => {
   try {
-    // Načítanie detailov triedy
     const classRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}`, axiosConfig)
     className.value = classRes.data.name
-    
-    // Načítanie predmetov v triede
-    const subjectsRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}/subjects`, axiosConfig)
-    subjects.value = subjectsRes.data
+    await refreshSubjects() // Načíta predmety
   } catch (error) {
     console.error("Chyba pri načítavaní dát triedy:", error)
   } finally {
     loading.value = false;
   }
+}
+
+const refreshSubjects = async () => {
+  const subjectsRes = await axios.get(`http://127.0.0.1:8000/classes/${classId}/subjects`, axiosConfig)
+  subjects.value = subjectsRes.data
+}
+
+const openAddNoteModal = () => {
+  newNoteData.value = {
+    subject: selectedSubject.value || '',
+    title: '',
+    content: ''
+  }
+  isModalOpen.value = true
 }
 
 // Kliknutie na konkrétny predmet
@@ -49,22 +59,24 @@ const selectSubject = async (subjName) => {
   }
 }
 
-// Pridanie novej poznámky
-async function addNote(){
+async function handleAddNoteSubmit(){
+  if (!newNoteData.value.subject.trim() || !newNoteData.value.title.trim()) {
+    alert("Predmet a Titulok musia byť vyplnené.")
+    return
+  }
   try {
     await axios.post(
       `http://127.0.0.1:8000/classes/${classId}/notes`, 
       {
-        title: "Nová poznámka",
-        content: "Obsah poznámky...",
-        subject: selectedSubject.value || "Všeobecné",
+        title: newNoteData.value.title,
+        content: newNoteData.value.content,
+        subject: newNoteData.value.subject.trim(),
       }, 
       axiosConfig
     );
-    // Po pridaní obnovíme poznámky pre aktuálny predmet, ak je nejaký vybraný
-    if (selectedSubject.value) {
-      selectSubject(selectedSubject.value);
-    }
+    isModalOpen.value = false
+    await refreshSubjects()
+    await selectSubject(newNoteData.value.subject.trim())
   } catch (error) {
     console.error("Chyba pri pridávaní poznámky:", error)
   }
@@ -88,6 +100,15 @@ const logout = () => {
   localStorage.removeItem('user_id')
   router.push('/')
 }
+
+// Stav pre modálne okno
+const isModalOpen = ref(false)
+const newNoteData = ref({
+  subject: '',
+  title: '',
+  content: ''
+})
+
 </script>
 
 <template>
@@ -131,7 +152,7 @@ const logout = () => {
             </ul>
         </div>
         <div class="sidebar-footer">
-            <button class="btn btn-add" @click="addNote()">Add note</button>
+            <button class="btn btn-add" @click="openAddNoteModal">Add note</button>
         </div>
     </aside>
 
@@ -170,5 +191,29 @@ const logout = () => {
 
   </div>
 </div>
+
+<div v-if="isModalOpen" class="modal-overlay" @click.self="isModalOpen = false">
+    <div class="modal-content">
+      <h2>Pridať novú poznámku</h2>
+      <form @submit.prevent="handleAddNoteSubmit">
+        <div class="form-group">
+          <label>Predmet</label>
+          <input type="text" v-model="newNoteData.subject"  required />
+        </div>
+        <div class="form-group">
+          <label>Titulok poznámky</label>
+          <input type="text" v-model="newNoteData.title"  required />
+        </div>
+        <div class="form-group">
+          <label>Obsah</label>
+          <textarea v-model="newNoteData.content"  rows="6"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-cancel" @click="isModalOpen = false">Zrušiť</button>
+          <button type="submit" class="btn btn-submit">Vytvoriť</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </template>
 <style src="@/assets/classView.css"></style>

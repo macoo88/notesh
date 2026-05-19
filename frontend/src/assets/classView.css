@@ -237,3 +237,55 @@
 .btn-add:hover {
    background-color: #ddd;
 }
+
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex; justify-content: center; align-items: center; z-index: 1000;
+}
+
+.modal-content {
+  background-color: #2a2a2a; color: white; padding: 25px; border-radius: 8px;
+  width: 100%; max-width: 500px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+.modal-content h2 
+{
+  margin-top: 0; margin-bottom: 20px; 
+}
+
+.form-group {
+   margin-bottom: 15px; display: flex; flex-direction: column; gap: 5px;
+}
+
+.form-group label {
+  font-size: 0.9rem; font-weight: bold; 
+}
+
+.form-group input, .form-group textarea {
+  padding: 10px; border-radius: 4px; border: 1px solid #444; background-color: #1e1e1e; color: white;
+}
+
+.form-group input:focus, .form-group textarea:focus {
+   outline: none; border-color: #007acc; 
+}
+
+.modal-actions {
+  display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; 
+}
+
+.btn-cancel {
+  background-color: #555; color: white; 
+}
+
+.btn-submit {
+    background-color: #5d5dff;;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+  
+}
