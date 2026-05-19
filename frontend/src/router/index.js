@@ -36,6 +36,12 @@ const router = createRouter({
       name: 'class',
       component: () => import('../views/ClassView.vue'),
     },
+    {
+      path: '/class/:id/schedule',
+      name: 'schedule',
+      component: () => import('../views/Schedule.vue'), // Uisti sa, že sa tvoj súbor volá presne takto
+      meta: { requiresAuth: true } // Ochrana, aby tam nemohol ísť neprihlásený človek
+    }
   ],
 })
 

@@ -315,3 +315,4 @@ def update_note_in_class(
 
     db.commit()
     return {"message": "Note updated successfully!"}
+

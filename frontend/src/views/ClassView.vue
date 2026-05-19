@@ -164,7 +164,14 @@ const openEditNoteModal = (note) => {
     <div class="header-container">
         <button class="btn btn-back" @click="router.push('/my-classes')">Späť na prehľad</button>
             <h1>Trieda: {{ className }}</h1>    </div>
-              <div>
+            
+            <div>
+              <button class="btn btn-schedule" @click="router.push(`/class/${classId}/schedule`)">
+                Rozvrh
+              </button>
+            </div>
+
+            <div>
             <button class="profileImg" @click="toggleProfileMenu">
             <img src="@/assets/user.png" alt="Profile Image" />
             </button>
@@ -203,7 +210,6 @@ const openEditNoteModal = (note) => {
     </aside>
 
     <main class="main-content">
-      
       <div v-if="selectedSubject" class="notes-section">
         <h3 class="section-title">Poznámky pre: {{ selectedSubject }}</h3>
         <div v-if="notes.length === 0" class="empty-text">V tomto predmete nie sú žiadne poznámky.</div>
