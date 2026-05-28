@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios' // PRIDANÉ: Import axiosu
+import axios from 'axios'
 
 const router = useRouter()
 const route = useRoute()
@@ -17,12 +17,12 @@ const logout = () => {
   router.push('/')
 }   
 
-// Modálne okno a konštanty
+// Modálne okno a konštanty rozvrhu
 const isModalOpen = ref(false)
 const days = ['Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok']
 const hours = [1, 2, 3, 4, 5, 6, 7, 8]
 
-// Naša čistá lokálna štruktúra, do ktorej budeme mapovať backend
+// Funkcia na vygenerovanie prázdnej 2D štruktúry rozvrhu
 const generateEmptySchedule = () => ({
   Pondelok: { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
   Utorok:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
@@ -34,7 +34,7 @@ const generateEmptySchedule = () => ({
 const scheduleData = ref(generateEmptySchedule())
 const tempScheduleData = ref({})
 
-// Spoločné nastavenie autorizácie (rovnako ako máš v ClassView)
+// Nastavenie autorizácie pre Axios (Bearer token)
 const token = localStorage.getItem('token')
 const axiosConfig = { headers: { Authorization: `Bearer ${token}` } }
 
@@ -43,11 +43,9 @@ const fetchSchedule = async () => {
   try {
     const response = await axios.get(`http://127.0.0.1:8000/classes/${classId}/schedule`, axiosConfig)
     
-    // Vynulujeme staré lokálne zobrazenie
     const freshSchedule = generateEmptySchedule()
     
-    // Backend vracia zoznam buniek: [{day: "Pondelok", period: 1, subject_name: "Matematika"}, ...]
-    // Pretransformujeme to do našej 2D štruktúry:
+    // Transformácia plochého poľa z backendu do našej priradenej 2D štruktúry
     response.data.forEach(cell => {
       if (freshSchedule[cell.day] && freshSchedule[cell.day].hasOwnProperty(cell.period)) {
         freshSchedule[cell.day][cell.period] = cell.subject_name || ''
@@ -60,12 +58,13 @@ const fetchSchedule = async () => {
   }
 }
 
-// Spustenie hneď pri vstupe na stránku rozvrhu
+// Načítame dáta hneď pri namontovaní komponentu
 onMounted(() => {
   fetchSchedule()
 })
 
 const openAddScheduleModal = () => {
+  // Vytvoríme hlbokú kópiu dát, aby sme nemenili pôvodný rozvrh pred stlačením "Uložiť"
   tempScheduleData.value = JSON.parse(JSON.stringify(scheduleData.value))
   isModalOpen.value = true
 }
@@ -73,15 +72,12 @@ const openAddScheduleModal = () => {
 // --- 2. UKLADANIE ROZVRHU NA BACKEND ---
 const handleScheduleSubmit = async () => {
   try {
-    // Tvoj backend očakáva List[schemas.ScheduleCellUpdate] v tvare:
-    // [{"day": "Pondelok", "period": 1, "subject_name": "Dejepis"}, ...]
-    // Musíme preto našu 2D štruktúru sploštiť do jedného poľa (Array)
     const payload = []
     
+    // Sploštenie 2D objektu na pole objektov pre backend (List[schemas.ScheduleCellUpdate])
     days.forEach(day => {
       hours.forEach(hour => {
         const value = tempScheduleData.value[day][hour]
-        // Pošleme len tie bunky, ktoré niečo obsahujú, alebo pokojne všetky (backend čistí tabuľku pomocou .delete())
         payload.push({
           day: day,
           period: Number(hour),
@@ -90,16 +86,18 @@ const handleScheduleSubmit = async () => {
       })
     })
 
-    // Odoslanie POST requestu na backend
+    // Odoslanie dát na FastAPI backend
     await axios.post(`http://127.0.0.1:8000/classes/${classId}/schedule`, payload, axiosConfig)
     
+    // Ak zápis prebehol v poriadku, prepíšeme ostré dáta a zatvoríme modál
     scheduleData.value = JSON.parse(JSON.stringify(tempScheduleData.value))
     isModalOpen.value = false
     alert("Rozvrh bol úspešne uložený na server!")
     
   } catch (error) {
     console.error("Chyba pri ukladaní rozvrhu na backend:", error)
-    alert(error.response?.data?.detail || "Nepodarilo sa uložiť rozvrh na server.")
+    // Ak nie si owner triedy, backend vráti 403 detail správu, ktorú tu korektne vypíšeme
+    alert(error.response?.data?.detail || "Nepodarilo sa uložiť rozvrh na server.");
   }
 }
 </script>
@@ -155,9 +153,7 @@ const handleScheduleSubmit = async () => {
     </main>
     
     <footer class="main-footer">
-      <div class="container footer-center">
-        
-      </div>
+      <div class="container footer-center"></div>
     </footer>
 
     <div v-if="isModalOpen" class="modal-overlay" @click.self="isModalOpen = false">
@@ -200,4 +196,4 @@ const handleScheduleSubmit = async () => {
   </div>
 </template>
 
-<style  src="@/assets/schedule.css"></style>
+<style src="@/assets/schedule.css"></style>
