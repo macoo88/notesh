@@ -1,10 +1,10 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router' // PRIDANÉ: useRoute
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import axios from 'axios' // PRIDANÉ: Import axiosu
 
 const router = useRouter()
-const route = useRoute() // PRIDANÉ: aktivácia route (bez tohto riadku to padalo)
-
+const route = useRoute()
 const classId = route.params.id
 
 const showProfileMenu = ref(false)
@@ -17,37 +17,90 @@ const logout = () => {
   router.push('/')
 }   
 
+// Modálne okno a konštanty
 const isModalOpen = ref(false)
-
 const days = ['Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok']
 const hours = [1, 2, 3, 4, 5, 6, 7, 8]
 
-const scheduleData = ref({
-  Pondelok: { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: ''},
+// Naša čistá lokálna štruktúra, do ktorej budeme mapovať backend
+const generateEmptySchedule = () => ({
+  Pondelok: { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
   Utorok:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
   Streda:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
   Štvrtok:  { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
   Piatok:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' }
 })
 
+const scheduleData = ref(generateEmptySchedule())
 const tempScheduleData = ref({})
 
+// Spoločné nastavenie autorizácie (rovnako ako máš v ClassView)
+const token = localStorage.getItem('token')
+const axiosConfig = { headers: { Authorization: `Bearer ${token}` } }
+
+// --- 1. NAČÍTANIE ROZVRHU Z BACKENDU ---
+const fetchSchedule = async () => {
+  try {
+    const response = await axios.get(`http://127.0.0.1:8000/classes/${classId}/schedule`, axiosConfig)
+    
+    // Vynulujeme staré lokálne zobrazenie
+    const freshSchedule = generateEmptySchedule()
+    
+    // Backend vracia zoznam buniek: [{day: "Pondelok", period: 1, subject_name: "Matematika"}, ...]
+    // Pretransformujeme to do našej 2D štruktúry:
+    response.data.forEach(cell => {
+      if (freshSchedule[cell.day] && freshSchedule[cell.day].hasOwnProperty(cell.period)) {
+        freshSchedule[cell.day][cell.period] = cell.subject_name || ''
+      }
+    })
+    
+    scheduleData.value = freshSchedule
+  } catch (error) {
+    console.error("Chyba pri načítavaní rozvrhu z backendu:", error)
+  }
+}
+
+// Spustenie hneď pri vstupe na stránku rozvrhu
+onMounted(() => {
+  fetchSchedule()
+})
+
 const openAddScheduleModal = () => {
-  // Hlboká kópia dát do pomocného stavu pre formulár
   tempScheduleData.value = JSON.parse(JSON.stringify(scheduleData.value))
   isModalOpen.value = true
 }
 
-// PRIDANÁ FUNKCIA: Bez nej formulár v template spôsoboval crash celej stránky
-const handleScheduleSubmit = () => {
-  // Skopírujeme dáta z formulára do hlavného zobrazenia
-  scheduleData.value = JSON.parse(JSON.stringify(tempScheduleData.value))
-  
-  // Zatiaľ ukladáme lokálne v prehliadači, neskôr sem napojíme axios
-  console.log("Ukladám rozvrh pre triedu " + classId, scheduleData.value)
-  
-  isModalOpen.value = false
-  alert("Rozvrh bol dočasne uložený!")
+// --- 2. UKLADANIE ROZVRHU NA BACKEND ---
+const handleScheduleSubmit = async () => {
+  try {
+    // Tvoj backend očakáva List[schemas.ScheduleCellUpdate] v tvare:
+    // [{"day": "Pondelok", "period": 1, "subject_name": "Dejepis"}, ...]
+    // Musíme preto našu 2D štruktúru sploštiť do jedného poľa (Array)
+    const payload = []
+    
+    days.forEach(day => {
+      hours.forEach(hour => {
+        const value = tempScheduleData.value[day][hour]
+        // Pošleme len tie bunky, ktoré niečo obsahujú, alebo pokojne všetky (backend čistí tabuľku pomocou .delete())
+        payload.push({
+          day: day,
+          period: Number(hour),
+          subject_name: value && value.trim() !== '' ? value.trim() : null
+        })
+      })
+    })
+
+    // Odoslanie POST requestu na backend
+    await axios.post(`http://127.0.0.1:8000/classes/${classId}/schedule`, payload, axiosConfig)
+    
+    scheduleData.value = JSON.parse(JSON.stringify(tempScheduleData.value))
+    isModalOpen.value = false
+    alert("Rozvrh bol úspešne uložený na server!")
+    
+  } catch (error) {
+    console.error("Chyba pri ukladaní rozvrhu na backend:", error)
+    alert(error.response?.data?.detail || "Nepodarilo sa uložiť rozvrh na server.")
+  }
 }
 </script>
 
