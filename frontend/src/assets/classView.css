@@ -325,3 +325,21 @@
   border-radius: 6px;
   
 }
+
+
+.btn-schedule {
+  background-color: #5d5dff;
+  border: none;
+  color: #ffffff;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+  border-radius: 6px;
+  margin-right: 50px; /* Vytvorí peknú medzeru pred profilom */
+}
+
+.btn-schedule:hover {
+  background-color: #ddd;
+  color: black;
+}
