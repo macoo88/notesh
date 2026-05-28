@@ -74,30 +74,30 @@ const handleScheduleSubmit = async () => {
   try {
     const payload = []
     
-    // Sploštenie 2D objektu na pole objektov pre backend (List[schemas.ScheduleCellUpdate])
-    days.forEach(day => {
+    // Pridáme 'index', ktorý nám povie, koľký deň v poradí to je (0 až 4)
+    days.forEach((day, index) => {
       hours.forEach(hour => {
         const value = tempScheduleData.value[day][hour]
+        
         payload.push({
-          day: day,
+          // Zmeníme názov dňa na číslo: index 0 (Pondelok) + 1 = 1
+          day: index + 1, 
           period: Number(hour),
           subject_name: value && value.trim() !== '' ? value.trim() : null
         })
       })
     })
 
-    // Odoslanie dát na FastAPI backend
+    // Odoslanie POST requestu na backend
     await axios.post(`http://127.0.0.1:8000/classes/${classId}/schedule`, payload, axiosConfig)
     
-    // Ak zápis prebehol v poriadku, prepíšeme ostré dáta a zatvoríme modál
     scheduleData.value = JSON.parse(JSON.stringify(tempScheduleData.value))
     isModalOpen.value = false
     alert("Rozvrh bol úspešne uložený na server!")
     
   } catch (error) {
     console.error("Chyba pri ukladaní rozvrhu na backend:", error)
-    // Ak nie si owner triedy, backend vráti 403 detail správu, ktorú tu korektne vypíšeme
-    alert(error.response?.data?.detail || "Nepodarilo sa uložiť rozvrh na server.");
+    alert(error.response?.data?.detail || "Nepodarilo sa uložiť rozvrh na server.")
   }
 }
 </script>
