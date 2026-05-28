@@ -47,8 +47,17 @@ const fetchSchedule = async () => {
     
     // Transformácia plochého poľa z backendu do našej priradenej 2D štruktúry
     response.data.forEach(cell => {
-      if (freshSchedule[cell.day] && freshSchedule[cell.day].hasOwnProperty(cell.period)) {
-        freshSchedule[cell.day][cell.period] = cell.subject_name || ''
+      let dayName = cell.day
+      
+      // Ak backend vracia ID dňa ako číslo (1-5), namapujeme ho späť na textový názov dňa
+      if (typeof cell.day === 'number' || !isNaN(Number(cell.day))) {
+        const dayIndex = Number(cell.day) - 1
+        dayName = days[dayIndex] // 1 -> days[0] -> 'Pondelok'
+      }
+
+      // Bezpečne priradíme predmet do bunky
+      if (dayName && freshSchedule[dayName] && freshSchedule[dayName].hasOwnProperty(cell.period)) {
+        freshSchedule[dayName][cell.period] = cell.subject_name || ''
       }
     })
     
@@ -81,7 +90,7 @@ const handleScheduleSubmit = async () => {
         
         payload.push({
           // Zmeníme názov dňa na číslo: index 0 (Pondelok) + 1 = 1
-          day: index + 1, 
+          day: String(index + 1), // alebo Number(index + 1) podľa toho, čo ti očakáva Pydantic schema
           period: Number(hour),
           subject_name: value && value.trim() !== '' ? value.trim() : null
         })
