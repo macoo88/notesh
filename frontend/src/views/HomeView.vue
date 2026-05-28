@@ -131,7 +131,7 @@ const handleLogin = async () => {
     
     <footer class="main-footer">
        <div class="container footer-center">
-        Noha
+        
       </div>
     </footer>
     <!-- --- REGISTER  --- -->

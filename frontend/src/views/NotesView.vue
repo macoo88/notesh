@@ -38,7 +38,7 @@
 
     <footer class="main-footer">
        <div class="container footer-center">
-        Noha
+        
       </div>
     </footer>
 
@@ -133,7 +133,7 @@ const handleCreateClass = async () => {
 
   } catch (error) {
     console.error(error);
-    alert(error.response?.data?.detail || "Nepodarilo sa vytvoriť triedu. Skontroluj, či si prihlásený.");
+    alert(error.response?.data?.detail || "Nepodarilo sa vytvoriť triedu");
   }
 }
 

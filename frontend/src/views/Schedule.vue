@@ -20,14 +20,14 @@ const logout = () => {
 const isModalOpen = ref(false)
 
 const days = ['Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok']
-const hours = [1, 2, 3, 4, 5, 6]
+const hours = [1, 2, 3, 4, 5, 6, 7, 8]
 
 const scheduleData = ref({
-  Pondelok: { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '' },
-  Utorok:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '' },
-  Streda:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '' },
-  Štvrtok:  { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '' },
-  Piatok:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '' }
+  Pondelok: { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: ''},
+  Utorok:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
+  Streda:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
+  Štvrtok:  { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' },
+  Piatok:   { 1: '', 2: '', 3: '', 4: '', 5: '', 6: '', 7: '', 8: '' }
 })
 
 const tempScheduleData = ref({})
@@ -103,7 +103,7 @@ const handleScheduleSubmit = () => {
     
     <footer class="main-footer">
       <div class="container footer-center">
-        Noha
+        
       </div>
     </footer>
 
