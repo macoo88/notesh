@@ -70,6 +70,7 @@ class NoteModel(Base):
     # Categorization for your "Subjects/Topics" goal
     subject = Column(String, default="General")
     topic = Column(String, nullable=True)
+    image_path = Column(String, nullable=True)
     
     # Metadata
     owner_id = Column(Integer, ForeignKey("users.id"))
