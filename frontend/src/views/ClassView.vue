@@ -265,6 +265,13 @@ const openEditNoteModal = (note) => {
           <textarea v-model="newNoteData.content"  rows="6"></textarea>
         </div>
         <div class="modal-actions">
+          <div>
+            <button type="button" style="background-color: transparent;" title="Pridať prílohu">
+              <button type="button" style="background-color: transparent;">
+                <span class="material-icons">attach_file</span>
+              </button>
+            </button>
+          </div>
           <button type="button" class="btn btn-cancel" @click="isModalOpen = false">Zrušiť</button>
           <button type="submit" class="btn btn-submit">{{ isEditing ? 'Uložiť zmeny' : 'Vytvoriť' }}</button>        </div>
       </form>
