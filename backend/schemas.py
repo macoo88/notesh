@@ -25,6 +25,10 @@ class UserView(BaseModel):
         from_attributes = True
 
 
+class ScheduleCellUpdate(BaseModel):
+    day: int
+    period: int
+    subject_name: Optional[str] = None
 
 
 class NoteCreate(BaseModel):

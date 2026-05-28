@@ -37,11 +37,25 @@ class ClassModel(Base):
     description = Column(String)
     invite_code = Column(String, unique=True) # Like a Discord invite link
     owner_id = Column(Integer, ForeignKey("users.id"))
+    
+    schedule_slots = relationship("ScheduleCellModel", back_populates="class_parent", cascade="all, delete-orphan")
 
     # Relationships
     members = relationship("UserModel", secondary=user_classes, back_populates="joined_classes")
     notes = relationship("NoteModel", back_populates="class_parent")
     
+class ScheduleCellModel(Base):
+    __tablename__ = "schedule_cells"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    class_id = Column(Integer, ForeignKey("classes.id"), index=True)
+    day = Column(Integer)        # 1 = Monday, 2 = Tuesday, ..., 5 = Friday
+    period = Column(Integer)     # 1 to 8 (The hour slot)
+    subject_name = Column(String, nullable=True) # e.g., "Math" or None if empty
+
+    # Explicit relationship back to the class
+    class_parent = relationship("ClassModel", back_populates="schedule_slots")
+
 
 
 class NoteModel(Base):

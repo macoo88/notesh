@@ -10,6 +10,7 @@ import schemas
 from database import SessionLocal, engine, Base, get_db
 import auth
 import random, string
+from typing import List
 
 
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -209,21 +210,61 @@ def read_root():
 def get_class_details(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
     
+    if not target_class:
+        raise HTTPException(status_code=404, detail="Class not found")
+        
     if current_user not in target_class.members:
         raise HTTPException(status_code=403, detail="Join the class to see details")
 
-    return target_class # This returns all notes linked to this class
+    return target_class
 
 
+########----------------------------------
+######## SCHEDULE (ROZVRH) APIs
 
-@app.get("/classes/{class_id}/notes")
-def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+@app.get("/classes/{class_id}/schedule")
+def get_class_schedule(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
-    
-    if current_user not in target_class.members:
-        raise HTTPException(status_code=403, detail="Join the class to see notes")
+    if not target_class or current_user not in target_class.members:
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    return target_class.notes # This returns all notes linked to this class
+    cells = db.query(models.ScheduleCellModel).filter(models.ScheduleCellModel.class_id == class_id).all()
+    return cells
+
+@app.post("/classes/{class_id}/schedule")
+def update_class_schedule(
+    class_id: int, 
+    schedule_data: List[schemas.ScheduleCellUpdate], 
+    db: Session = Depends(get_db), 
+    current_user: models.UserModel = Depends(get_current_user)
+):
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+    if not target_class:
+        raise HTTPException(status_code=404, detail="Class not found")
+        
+    # Security: Only the class owner (creator) can modify the rozvrh
+    if target_class.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the class owner can modify the schedule")
+
+    # Wipe existing schedule slots for this class to prevent duplicates
+    db.query(models.ScheduleCellModel).filter(models.ScheduleCellModel.class_id == class_id).delete()
+
+    # Bulk insert the new grid entries
+    for cell in schedule_data:
+        new_cell = models.ScheduleCellModel(
+            class_id=class_id,
+            day=cell.day,
+            period=cell.period,
+            subject_name=cell.subject_name if cell.subject_name and cell.subject_name.strip() else None
+        )
+        db.add(new_cell)
+        
+    db.commit()
+    return {"message": "Schedule updated successfully!"}
+
+
+########----------------------------------
+######## SUBJECTS & NOTES APIs
 
 @app.get("/classes/{class_id}/subjects")
 def get_class_subjects(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
@@ -231,11 +272,24 @@ def get_class_subjects(class_id: int, db: Session = Depends(get_db), current_use
     if not target_class or current_user not in target_class.members:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    subjects = db.query(models.NoteModel.subject).\
-        filter(models.NoteModel.class_id == class_id).\
+    # Get non-empty distinct subject names directly out of the schedule matrix
+    subjects = db.query(models.ScheduleCellModel.subject_name).\
+        filter(models.ScheduleCellModel.class_id == class_id, models.ScheduleCellModel.subject_name != None).\
         distinct().all()
-    
+        
     return [s[0] for s in subjects]
+
+@app.get("/classes/{class_id}/notes")
+def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+    
+    if not target_class:
+        raise HTTPException(status_code=404, detail="Class not found")
+        
+    if current_user not in target_class.members:
+        raise HTTPException(status_code=403, detail="Join the class to see notes")
+
+    return target_class.notes
 
 @app.get("/classes/{class_id}/notes/{subject}")
 def get_class_subject_notes(class_id: int, subject: str, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
@@ -261,32 +315,25 @@ def create_note_in_class(
     db: Session = Depends(get_db), 
     current_user: models.UserModel = Depends(get_current_user)
 ):
-    # 1. Check if class exists
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
     if not target_class:
         raise HTTPException(status_code=404, detail="Class not found")
 
-    # 2. Security: Is the user a member of this class?
     if current_user not in target_class.members:
         raise HTTPException(status_code=403, detail="You are not a member of this class")
 
-    # 3. Create the note
     new_note = models.NoteModel(
         title=note.title,
         content=note.content,
         class_id=class_id,
         owner_id=current_user.id,
-        subject=note.subject,
-        #topic=note.topic
+        subject=note.subject
     )
     
     db.add(new_note)
     db.commit()
     return {"message": "Note posted to class!"}
 
-
-
-#pridal som sem put co vytvorilo ai tak potom si to uprav jak potrebujes, 
 @app.put("/classes/{class_id}/notes/{note_id}")
 def update_note_in_class(
     class_id: int,
@@ -295,7 +342,6 @@ def update_note_in_class(
     db: Session = Depends(get_db),
     current_user: models.UserModel = Depends(get_current_user)
 ):
-    # 1. Nájdeme poznámku v databáze
     db_note = db.query(models.NoteModel).filter(
         models.NoteModel.id == note_id,
         models.NoteModel.class_id == class_id
@@ -304,11 +350,9 @@ def update_note_in_class(
     if not db_note:
         raise HTTPException(status_code=404, detail="Note not found")
 
-    # 2. Bezpečnostná kontrola: Môže ju upravovať iba jej autor alebo owner triedy?
     if db_note.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="You can only edit your own notes")
 
-    # 3. Prepíšeme staré hodnoty novými
     db_note.title = note.title
     db_note.content = note.content
     db_note.subject = note.subject
@@ -316,3 +360,162 @@ def update_note_in_class(
     db.commit()
     return {"message": "Note updated successfully!"}
 
+
+#@app.get("/")
+#def read_root():
+#    return {"message": "hello"}
+#
+#@app.get("/classes/{class_id}")
+#def get_class_details(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+#    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+#    
+#    if current_user not in target_class.members:
+#        raise HTTPException(status_code=403, detail="Join the class to see details")
+#
+#    return target_class # This returns all notes linked to this class
+#
+#
+#
+#@app.get("/classes/{class_id}/notes")
+#def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+#    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+#    
+#    if current_user not in target_class.members:
+#        raise HTTPException(status_code=403, detail="Join the class to see notes")
+#
+#    return target_class.notes # This returns all notes linked to this class
+#
+#@app.get("/classes/{class_id}/subjects")
+#def get_class_subjects(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+#    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+#    if not target_class or current_user not in target_class.members:
+#        raise HTTPException(status_code=403, detail="Access denied")
+#
+#    # Get non-empty distinct subject names directly out of the schedule matrix
+#    subjects = db.query(models.ScheduleCellModel.subject_name).\
+#        filter(models.ScheduleCellModel.class_id == class_id, models.ScheduleCellModel.subject_name != None).\
+#        distinct().all()
+#        
+#    return [s[0] for s in subjects]
+#
+#
+#@app.get("/classes/{class_id}/notes/{subject}")
+#def get_class_subject_notes(class_id: int, subject: str, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+#    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+#    
+#    if not target_class:
+#        raise HTTPException(status_code=404, detail="Class not found")
+#        
+#    if current_user not in target_class.members:
+#        raise HTTPException(status_code=403, detail="Join the class to see notes")
+#
+#    filtered_notes = db.query(models.NoteModel).filter(
+#        models.NoteModel.class_id == class_id,
+#        models.NoteModel.subject == subject
+#    ).all()
+#
+#    return filtered_notes
+#
+#@app.post("/classes/{class_id}/notes")
+#def create_note_in_class(
+#    class_id: int, 
+#    note: schemas.NoteCreate, 
+#    db: Session = Depends(get_db), 
+#    current_user: models.UserModel = Depends(get_current_user)
+#):
+#    # 1. Check if class exists
+#    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+#    if not target_class:
+#        raise HTTPException(status_code=404, detail="Class not found")
+#
+#    # 2. Security: Is the user a member of this class?
+#    if current_user not in target_class.members:
+#        raise HTTPException(status_code=403, detail="You are not a member of this class")
+#
+#    # 3. Create the note
+#    new_note = models.NoteModel(
+#        title=note.title,
+#        content=note.content,
+#        class_id=class_id,
+#        owner_id=current_user.id,
+#        subject=note.subject,
+#        #topic=note.topic
+#    )
+#    
+#    db.add(new_note)
+#    db.commit()
+#    return {"message": "Note posted to class!"}
+#
+#
+#
+##pridal som sem put co vytvorilo ai tak potom si to uprav jak potrebujes, 
+#@app.put("/classes/{class_id}/notes/{note_id}")
+#def update_note_in_class(
+#    class_id: int,
+#    note_id: int,
+#    note: schemas.NoteCreate,
+#    db: Session = Depends(get_db),
+#    current_user: models.UserModel = Depends(get_current_user)
+#):
+#    # 1. Nájdeme poznámku v databáze
+#    db_note = db.query(models.NoteModel).filter(
+#        models.NoteModel.id == note_id,
+#        models.NoteModel.class_id == class_id
+#    ).first()
+#    
+#    if not db_note:
+#        raise HTTPException(status_code=404, detail="Note not found")
+#
+#    # 2. Bezpečnostná kontrola: Môže ju upravovať iba jej autor alebo owner triedy?
+#    if db_note.owner_id != current_user.id:
+#        raise HTTPException(status_code=403, detail="You can only edit your own notes")
+#
+#    # 3. Prepíšeme staré hodnoty novými
+#    db_note.title = note.title
+#    db_note.content = note.content
+#    db_note.subject = note.subject
+#
+#    db.commit()
+#    return {"message": "Note updated successfully!"}
+#
+#
+#@app.post("/classes/{class_id}/schedule")
+#def update_class_schedule(
+#    class_id: int, 
+#    schedule_data: List[schemas.ScheduleCellUpdate], 
+#    db: Session = Depends(get_db), 
+#    current_user: models.UserModel = Depends(get_current_user)
+#):
+#    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+#    if not target_class:
+#        raise HTTPException(status_code=404, detail="Class not found")
+#        
+#    # Security: Only the class owner (creator) can modify the rozvrh
+#    if target_class.owner_id != current_user.id:
+#        raise HTTPException(status_code=403, detail="Only the class owner can modify the schedule")
+#
+#    # Wipe existing schedule slots for this class to prevent duplicates
+#    db.query(models.ScheduleCellModel).filter(models.ScheduleCellModel.class_id == class_id).delete()
+#
+#    # Bulk insert the new grid entries
+#    for cell in schedule_data:
+#        new_cell = models.ScheduleCellModel(
+#            class_id=class_id,
+#            day=cell.day,
+#            period=cell.period,
+#            subject_name=cell.subject_name if cell.subject_name and cell.subject_name.strip() else None
+#        )
+#        db.add(new_cell)
+#        
+#    db.commit()
+#    return {"message": "Schedule updated successfully!"}
+#
+#
+#@app.get("/classes/{class_id}/schedule")
+#def get_class_schedule(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
+#    target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
+#    if not target_class or current_user not in target_class.members:
+#        raise HTTPException(status_code=403, detail="Access denied")
+#
+#    cells = db.query(models.ScheduleCellModel).filter(models.ScheduleCellModel.class_id == class_id).all()
+#    return cells
