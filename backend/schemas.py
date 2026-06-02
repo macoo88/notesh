@@ -44,7 +44,7 @@ class NoteCreate(BaseModel):
 # What you send BACK to the user (GET)
 class NoteView(NoteCreate):
     id: int # Now the ID is included!
-
+    image_path: Optional[str] = None
     class Config:
         from_attributes = True
 

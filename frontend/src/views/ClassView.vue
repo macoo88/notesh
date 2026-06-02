@@ -158,11 +158,17 @@ async function handleAddNoteSubmit(){
     selectedFile.value = null
     selectedFilePreview.value = ""
 
-  } catch (error) {
-    console.error("Chyba pri ukladaní poznámky:", error)
-    // Ak backend vráti detailnú správu o chybe, zobrazíme ju, inak všeobecnú hlášku
-    alert(error.response?.data?.detail || "Nepodarilo sa uložiť zmeny. Skontroluj konzolu servera.");
+ } catch (error) {
+  console.error("Chyba pri ukladaní poznámky:", error);
+  
+  // Ak FastAPI vráti detailnú validačnú chybu (pole objektov)
+  if (error.response?.data?.detail && typeof error.response.data.detail === 'object') {
+    const messages = error.response.data.detail.map(err => `${err.loc.join('.')} -> ${err.msg}`).join('\n');
+    alert("Validačná chyba backendu:\n" + messages);
+  } else {
+    alert(error.response?.data?.detail || "Nepodarilo sa uložiť zmeny.");
   }
+ }
 }
 
 // Výber aktívnej poznámky na zobrazenie detailu
@@ -274,23 +280,32 @@ const openEditNoteModal = (note) => {
           Vyber si predmet z ľavého menu pre zobrazenie poznámok.
         </div>
 
-        <div v-if="activeNote" class="note-detail-box">
-          <h2 class="note-detail-title">{{ activeNote.title }}</h2>
-          <hr class="note-detail-divider" />
-          <div class="note-detail-content-wrapper">
-            <p class="note-detail-content">{{ activeNote.content }}</p>
-            
-            <div v-if="activeNote.image_path" class="note-image-preview-container" style="margin: 15px 0; text-align: left;">
-              <img 
-                :src="`http://127.0.0.1:8000/${activeNote.image_path}`" 
-                alt="Príloha poznámky" 
-                style="max-width: 100%; max-height: 350px; border-radius: 6px; border: 1px solid #333;"
-              />
-            </div>
+<div v-if="activeNote" class="note-detail-box">
+  <h2 class="note-detail-title">{{ activeNote.title }}</h2>
+  <hr class="note-detail-divider" />
+  
+  <div class="note-detail-content-wrapper" style="display: flex; flex-direction: column; width: 100%;">
+    <p class="note-detail-content" style="white-space: pre-wrap; margin-bottom: 20px; width: 100%;">
+      {{ activeNote.content }}
+    </p>
+    
+    <p style="color: gray; font-size: 11px; margin-top: 15px;">
+      DEBUG Cesta k obrázku: {{ activeNote.image_path }}
+    </p>
 
-            <button class="btn btn-edit" @click="openEditNoteModal(activeNote)">Upraviť</button>
-          </div>
-        </div>
+    <div v-if="activeNote.image_path" class="note-image-container" style="display: block; width: 100%; margin: 20px 0; text-align: left;">
+      <img 
+        :src="`http://127.0.0.1:8000/${activeNote.image_path}`" 
+        alt="Príloha poznámky" 
+        style="max-width: 100%; height: auto; max-height: 450px; display: block; border-radius: 8px; border: 2px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3);"
+      />
+    </div>
+
+    <div style="margin-top: 10px;">
+      <button class="btn btn-edit" @click="openEditNoteModal(activeNote)">Upraviť</button>
+    </div>
+  </div>
+</div>
       </main>
     </div>
   </div>

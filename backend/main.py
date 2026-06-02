@@ -1,48 +1,40 @@
-from fastapi import FastAPI, Depends, HTTPException, Header
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.orm import relationship
+import os
+import random
+import shutil
+import string
+from typing import List, Optional
 
+from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from jose import JWTError, jwt
+from sqlalchemy.orm import Session, relationship, sessionmaker
 
+import auth
 import models
 import schemas
+from auth import ALGORITHM, SECRET_KEY
+from database import Base, SessionLocal, engine, get_db
 
-from database import SessionLocal, engine, Base, get_db
-import auth
-import random, string
-
-from typing import List
-from fastapi import File, UploadFile
-from fastapi.staticfiles import StaticFiles
-import os
-import shutil
-
-
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-# This tells FastAPI: "Look for a token at the /login endpoint"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-
-
-
+# Inicializácia databázy
 Base.metadata.create_all(bind=engine)
 
 # FastAPI App
 app = FastAPI()
 
-
-#allow all connections ?
+# Povolenie CORS pre spojenie s frontendom
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, change "*" to his specific URL
+    allow_origins=["*"],  # V produkcii zmeň na konkrétnu URL adresu frontendu
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Nastavenie OAuth2 schémy pre hľadanie tokenu v "/login"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
-
-from jose import jwt, JWTError
-from auth import SECRET_KEY, ALGORITHM
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
@@ -51,7 +43,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        # 1. Decode the token
+        # 1. Dekódovanie tokenu
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         user_id: int = payload.get("id")
@@ -62,34 +54,36 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise HTTPException(status_code=400, detail="credentials_exception")
 
-    # 2. Find the actual user in the DB
+    # 2. Vyhľadanie používateľa v databáze
     user = db.query(models.UserModel).filter(models.UserModel.id == user_id).first()
     if user is None:
         raise credentials_exception
         
-    return user # This returns the full User object!
+    return user  # Vráti plný objekt používateľa
 
 
-# Create the folder on your disk if it doesn't exist
+# Vytvorenie zložky na disku pre ukladanie obrázkov, ak neexistuje
 os.makedirs("uploads", exist_ok=True)
 
-# Mount the folder to FastAPI
+# Pripojenie zložky do FastAPI pod routu /static
 app.mount("/static", StaticFiles(directory="uploads"), name="static")
+
+
 #####---------------------------------
 ## U S E R S __ A Ps
 
-@app.get("/users/me", response_model=schemas.UserView) # Use a schema to filter sensitive data
+@app.get("/users/me", response_model=schemas.UserView)
 def read_users_me(current_user: models.UserModel = Depends(get_current_user)):
     return current_user
+
+
 @app.get("/users/me/classes")
 def get_my_classes(current_user: models.UserModel = Depends(get_current_user)):
     return current_user.joined_classes
 
 
-
-@app.post("/register")# register ---------------------------------------- register
+@app.post("/register")
 def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
-
     if db.query(models.UserModel).filter(models.UserModel.username == user.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
     
@@ -97,8 +91,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already registered")
 
     if user.password != user.again_password:
-        raise HTTPException(status_code=401, detail="The passwords do not match") # 401 ?
-
+        raise HTTPException(status_code=401, detail="The passwords do not match")
 
     code = auth.generate_code()
     
@@ -113,9 +106,7 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.add(new_user)
     db.commit()
     
-    # 3. TODO: send mails maybe ? 
     print(f"DEBUG: Verification code for {user.email} is {code}")
-    
     
     return {
         "message": "User created", 
@@ -123,30 +114,28 @@ def register(user: schemas.UserCreate, db: Session = Depends(get_db)):
         "username": user.username
     }
 
+
 @app.post('/verify')
-def verify_code(user: schemas.UserVerify, db:Session = Depends(get_db)):
-    # use user.password as the verifycation code
+def verify_code(user: schemas.UserVerify, db: Session = Depends(get_db)):
     user_indb = db.query(models.UserModel).filter(models.UserModel.username == user.username).first()
     
     if not user_indb:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if user_indb.is_verified == True:
-        return {"Username":user_indb.username, "Message": "user aready verified"}
+    if user_indb.is_verified:
+        return {"Username": user_indb.username, "Message": "user already verified"}
 
     if user_indb.verification_code == user.code:
         user_indb.is_verified = True
-        user_indb.verification_code = None  # Clean up the code after use
-        db.commit() # Save the change to notes.db
+        user_indb.verification_code = None  # Vyčistenie kódu po overení
+        db.commit()
         return {"message": "Verification successful! You can now login."}
     else:
         raise HTTPException(status_code=400, detail="Wrong code, try again.")
 
 
 @app.post("/login")
-# Change 'user: UserLogin' to 'form_data: OAuth2PasswordRequestForm = Depends()'
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    # Now use form_data.username instead of user.username
     db_user = db.query(models.UserModel).filter(models.UserModel.username == form_data.username).first()
     
     if not db_user or not auth.verify_password(form_data.password, db_user.hashed_password):
@@ -161,18 +150,12 @@ def read_users(db: Session = Depends(get_db)):
     return db.query(models.UserModel).all()
 
 
-## U S E R S __ A Ps    E N D
-#########---------------------------------
-
-
-
-
-########----------------------------------
+#####----------------------------------
 ######## C L A S S E S  __ A Ps
 
 @app.post("/classes/create")
 def create_class(name: str, description: str, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
-    # Generate a random 8-character invite code
+    # Vygenerovanie náhodného 8-miestneho pozývacieho kódu
     invite = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
     
     new_class = models.ClassModel(
@@ -182,7 +165,7 @@ def create_class(name: str, description: str, db: Session = Depends(get_db), cur
         owner_id=current_user.id
     )
     
-    # Automatically add the creator as a member
+    # Automatické pridanie stvoriteľa triedy medzi jej členov
     new_class.members.append(current_user)
     
     db.add(new_class)
@@ -204,18 +187,9 @@ def join_class(invite_code: str, db: Session = Depends(get_db), current_user: mo
     db.commit()
     return {"message": f"Joined {target_class.name} successfully!"}
 
-######## C L A S S E S  __ A Ps       E N D
-########----------------------------------
 
-
-
-
-########----------------------------------
-######## N O T E S __ A Ps
-
-@app.get("/")
-def read_root():
-    return {"message": "hello"}
+#####----------------------------------
+######## SCHEDULE (ROZVRH) APIs
 
 @app.get("/classes/{class_id}")
 def get_class_details(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
@@ -230,9 +204,6 @@ def get_class_details(class_id: int, db: Session = Depends(get_db), current_user
     return target_class
 
 
-########----------------------------------
-######## SCHEDULE (ROZVRH) APIs
-
 @app.get("/classes/{class_id}/schedule")
 def get_class_schedule(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
@@ -241,6 +212,7 @@ def get_class_schedule(class_id: int, db: Session = Depends(get_db), current_use
 
     cells = db.query(models.ScheduleCellModel).filter(models.ScheduleCellModel.class_id == class_id).all()
     return cells
+
 
 @app.post("/classes/{class_id}/schedule")
 def update_class_schedule(
@@ -253,14 +225,14 @@ def update_class_schedule(
     if not target_class:
         raise HTTPException(status_code=404, detail="Class not found")
         
-    # Security: Only the class owner (creator) can modify the rozvrh
+    # Bezpečnosť: Len vlastník (tvorca) triedy môže upravovať rozvrh
     if target_class.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Only the class owner can modify the schedule")
 
-    # Wipe existing schedule slots for this class to prevent duplicates
+    # Vymazanie starého rozvrhu pre danú triedu, aby nevznikali duplicity
     db.query(models.ScheduleCellModel).filter(models.ScheduleCellModel.class_id == class_id).delete()
 
-    # Bulk insert the new grid entries
+    # Hromadný zápis nových buniek rozvrhu
     for cell in schedule_data:
         new_cell = models.ScheduleCellModel(
             class_id=class_id,
@@ -274,7 +246,7 @@ def update_class_schedule(
     return {"message": "Schedule updated successfully!"}
 
 
-########----------------------------------
+#####----------------------------------
 ######## SUBJECTS & NOTES APIs
 
 @app.get("/classes/{class_id}/subjects")
@@ -283,14 +255,15 @@ def get_class_subjects(class_id: int, db: Session = Depends(get_db), current_use
     if not target_class or current_user not in target_class.members:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Get non-empty distinct subject names directly out of the schedule matrix
+    # Získanie unikátnych a neprázdnych názvov predmetov priamo z buniek rozvrhu matice
     subjects = db.query(models.ScheduleCellModel.subject_name).\
         filter(models.ScheduleCellModel.class_id == class_id, models.ScheduleCellModel.subject_name != None).\
         distinct().all()
         
     return [s[0] for s in subjects]
 
-@app.get("/classes/{class_id}/notes")
+
+@app.get("/classes/{class_id}/notes", response_model=List[schemas.NoteView])
 def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
     
@@ -302,7 +275,8 @@ def get_class_notes(class_id: int, db: Session = Depends(get_db), current_user: 
 
     return target_class.notes
 
-@app.get("/classes/{class_id}/notes/{subject}")
+
+@app.get("/classes/{class_id}/notes/{subject}", response_model=List[schemas.NoteView])
 def get_class_subject_notes(class_id: int, subject: str, db: Session = Depends(get_db), current_user: models.UserModel = Depends(get_current_user)):
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
     
@@ -319,100 +293,111 @@ def get_class_subject_notes(class_id: int, subject: str, db: Session = Depends(g
 
     return filtered_notes
 
+
 @app.post("/classes/{class_id}/notes")
-def create_note_in_class(
-    class_id: int, 
-    note: schemas.NoteCreate, 
-    db: Session = Depends(get_db), 
+def create_note_json(
+    class_id: int,
+    note_data: schemas.NoteCreate,
+    db: Session = Depends(get_db),
     current_user: models.UserModel = Depends(get_current_user)
 ):
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
     if not target_class:
         raise HTTPException(status_code=404, detail="Class not found")
-
     if current_user not in target_class.members:
-        raise HTTPException(status_code=403, detail="You are not a member of this class")
+        raise HTTPException(status_code=403, detail="Access denied")
 
     new_note = models.NoteModel(
-        title=note.title,
-        content=note.content,
+        title=note_data.title,
+        content=note_data.content,
         class_id=class_id,
         owner_id=current_user.id,
-        subject=note.subject
+        subject=note_data.subject,
+        image_path=None
     )
-    
     db.add(new_note)
     db.commit()
-    return {"message": "Note posted to class!"}
+    db.refresh(new_note)
+    return new_note
 
-@app.put("/classes/{class_id}/notes/{note_id}")
-def update_note_in_class(
-    class_id: int,
-    note_id: int,
-    note: schemas.NoteCreate,
-    db: Session = Depends(get_db),
-    current_user: models.UserModel = Depends(get_current_user)
-):
-    db_note = db.query(models.NoteModel).filter(
-        models.NoteModel.id == note_id,
-        models.NoteModel.class_id == class_id
-    ).first()
-    
-    if not db_note:
-        raise HTTPException(status_code=404, detail="Note not found")
-
-    if db_note.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="You can only edit your own notes")
-
-    db_note.title = note.title
-    db_note.content = note.content
-    db_note.subject = note.subject
-
-    db.commit()
-    return {"message": "Note updated successfully!"}
-
-from fastapi import Form
 
 @app.post("/classes/{class_id}/notes-with-image")
 def create_note_with_image(
     class_id: int,
     title: str = Form(...),
-    content: str = Form(...),
+    content: Optional[str] = Form(""),
     subject: str = Form(...),
-    image: UploadFile = File(None), # Optional! Can be None
+    image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
     current_user: models.UserModel = Depends(get_current_user)
 ):
-    # 1. Verification checks (same as your standard note route)
     target_class = db.query(models.ClassModel).filter(models.ClassModel.id == class_id).first()
-    if not target_class or current_user not in target_class.members:
+    if not target_class:
+        raise HTTPException(status_code=404, detail="Class not found")
+        
+    if current_user not in target_class.members:
         raise HTTPException(status_code=403, detail="Access denied")
 
     saved_path = None
 
-    # 2. If an image file was actually uploaded, save it to disk
-    if image:
-        # Generate a semi-unique filename to avoid collisions
-        filename = f"{class_id}_{current_user.id}_{image.filename}"
-        file_location = f"uploads/{filename}"
+    # Spracovanie a fyzické uloženie nahraného súboru
+    if image and image.filename:
+        clean_filename = image.filename.replace(" ", "_")
+        filename = f"{class_id}_{current_user.id}_{clean_filename}"
         
-        # Write the file binary stream to disk
+        # 1. Zápis súboru na disk do priečinka 'uploads'
+        file_location = f"uploads/{filename}"
         with open(file_location, "wb") as buffer:
             shutil.copyfileobj(image.file, buffer)
             
-        saved_path = f"static/{filename}" # This path goes to the DB
+        # 2. Relatívna cesta pre frontend prístupná cez app.mount
+        saved_path = f"static/{filename}"
 
-    # 3. Save everything to the database
+    # Vytvorenie a zápis záznamu poznámky s obrázkom do DB
     new_note = models.NoteModel(
         title=title,
-        content=content,
+        content=content if content else "",
         class_id=class_id,
         owner_id=current_user.id,
         subject=subject,
-        image_path=saved_path # Stores the string path
+        image_path=saved_path
     )
     
     db.add(new_note)
     db.commit()
-    return {"message": "Note with image saved!"}
+    db.refresh(new_note)
+    return {"message": "Note with image saved!", "image_path": saved_path}
 
+
+@app.put("/classes/{class_id}/notes/{note_id}", response_model=schemas.NoteView)
+def update_note(
+    class_id: int,
+    note_id: int,
+    note_data: schemas.NoteCreate,
+    db: Session = Depends(get_db),
+    current_user: models.UserModel = Depends(get_current_user)
+):
+    note = db.query(models.NoteModel).filter(
+        models.NoteModel.id == note_id, 
+        models.NoteModel.class_id == class_id
+    ).first()
+    
+    if not note:
+        raise HTTPException(status_code=404, detail="Note not found")
+        
+    if note.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own notes")
+
+    # Aktualizácia dát poznámky
+    note.title = note_data.title
+    note.content = note_data.content
+    note.subject = note_data.subject
+
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+@app.get("/")
+def read_root():
+    return {"message": "hello"}
