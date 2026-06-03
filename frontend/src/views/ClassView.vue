@@ -279,21 +279,17 @@ const openEditNoteModal = (note) => {
         <div v-else class="no-selection-state">
           Vyber si predmet z ľavého menu pre zobrazenie poznámok.
         </div>
-
-<div v-if="activeNote" class="note-detail-box">
+<div v-if="activeNote" class="note-detail-box" style="display: block; height: auto; min-height: unset; padding-bottom: 30px;">
   <h2 class="note-detail-title">{{ activeNote.title }}</h2>
   <hr class="note-detail-divider" />
   
-  <div class="note-detail-content-wrapper" style="display: flex; flex-direction: column; width: 100%;">
-    <p class="note-detail-content" style="white-space: pre-wrap; margin-bottom: 20px; width: 100%;">
+  <div class="note-detail-content-wrapper" style="display: block; width: 100%; text-align: left;">
+    
+    <p class="note-detail-content" style="white-space: pre-wrap; margin: 0 0 15px 0; padding: 0; width: 100%; display: block;">
       {{ activeNote.content }}
     </p>
-    
-    <p style="color: gray; font-size: 11px; margin-top: 15px;">
-      DEBUG Cesta k obrázku: {{ activeNote.image_path }}
-    </p>
 
-    <div v-if="activeNote.image_path" class="note-image-container" style="display: block; width: 100%; margin: 20px 0; text-align: left;">
+    <div v-if="activeNote.image_path" class="note-image-container" style="display: block; width: 100%; margin: 5px 0 20px 0; text-align: left;">
       <img 
         :src="`http://127.0.0.1:8000/${activeNote.image_path}`" 
         alt="Príloha poznámky" 
@@ -301,7 +297,7 @@ const openEditNoteModal = (note) => {
       />
     </div>
 
-    <div style="margin-top: 10px;">
+    <div style="display: block; margin-top: 15px;">
       <button class="btn btn-edit" @click="openEditNoteModal(activeNote)">Upraviť</button>
     </div>
   </div>
