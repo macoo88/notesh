@@ -59,13 +59,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if user is None:
         raise credentials_exception
         
-    return user  # Vráti plný objekt používateľa
+    return user
 
 
-# Vytvorenie zložky na disku pre ukladanie obrázkov, ak neexistuje
 os.makedirs("uploads", exist_ok=True)
 
-# Pripojenie zložky do FastAPI pod routu /static
 app.mount("/static", StaticFiles(directory="uploads"), name="static")
 
 
